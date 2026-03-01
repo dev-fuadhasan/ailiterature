@@ -39,7 +39,7 @@ export async function GET(
   }
 
   const projectPapers = await prisma.projectPaper.findMany({
-    where: { projectId: id, extractionStatus: "COMPLETED" },
+    where: { projectId: id },
     include: {
       paper: {
         include: { extraction: true },

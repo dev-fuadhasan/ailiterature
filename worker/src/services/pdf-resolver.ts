@@ -183,13 +183,24 @@ async function fetchOaPdfDownloaderCandidate(titleLinkUrl: string): Promise<Cand
       }
     );
 
-    if (response.status !== 200 || !response.data?.success) return null;
+    if (response.status !== 200 || !response.data?.success) {
+      console.warn(
+        `[OAPDFDownloader] Miss for ${titleLinkUrl} — HTTP ${response.status}`,
+        `success=${response.data?.success}`,
+        `error=${response.data?.error ?? "(none)"}`,
+        `pdfUrl=${response.data?.pdfUrl ?? "(none)"}`,
+      );
+      return null;
+    }
 
     const pdfUrl: string | undefined = response.data.pdfUrl;
-    if (!pdfUrl) return null;
+    if (!pdfUrl) {
+      console.warn(`[OAPDFDownloader] success=true but no pdfUrl for ${titleLinkUrl}`);
+      return null;
+    }
 
     console.log(
-      `[OAPDFDownloader] Found PDF for ${titleLinkUrl} → ${pdfUrl}` +
+      `[OAPDFDownloader] ✓ Found PDF for ${titleLinkUrl} → ${pdfUrl}` +
         (response.data.requiresBrowser ? " (requiresBrowser)" : "")
     );
 
@@ -331,6 +342,8 @@ export async function resolveAndFetchPdf(
   paper: PaperInput & { directPdfUrl?: string }
 ): Promise<ResolvedPdfDownload | null> {
   const candidates: Candidate[] = [];
+  const titleShort = paper.title.slice(0, 60);
+  console.log(`[Resolver] "${titleShort}" | landing=${paper.landing_url || "(none)"} | doi=${paper.doi || "(none)"} | directPdf=${paper.directPdfUrl || "(none)"}`);
 
   // 1. Direct PDF link surfaced by Google Scholar (highest priority)
   if (paper.directPdfUrl && looksLikePdf(paper.directPdfUrl)) {
@@ -367,15 +380,25 @@ export async function resolveAndFetchPdf(
   }
 
   const uniqueCandidates = dedupeCandidates(candidates).slice(0, 15);
+  const titleShort2 = paper.title.slice(0, 60);
+  console.log(`[Resolver] "${titleShort2}" — ${uniqueCandidates.length} candidate(s): ${uniqueCandidates.map((c) => c.selector).join(", ") || "(none)"}`);
 
   for (const candidate of uniqueCandidates) {
     const valid = await isValidPdfUrl(candidate.url);
-    if (!valid) continue;
+    if (!valid) {
+      console.log(`[Resolver]   ✗ not a valid PDF: ${candidate.url.slice(0, 100)}`);
+      continue;
+    }
 
     const downloaded = await downloadPdf(candidate.url);
-    if (downloaded) return downloaded;
+    if (downloaded) {
+      console.log(`[Resolver]   ✓ downloaded ${downloaded.pageCount}p / ${downloaded.text.length} chars via ${candidate.selector}`);
+      return downloaded;
+    }
+    console.log(`[Resolver]   ✗ download failed or text too short: ${candidate.url.slice(0, 100)}`);
   }
 
+  console.log(`[Resolver] "${titleShort2}" — NO PDF found`);
   return null;
 }
 
