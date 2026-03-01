@@ -1,7 +1,56 @@
 import Groq from "groq-sdk";
 import { z } from "zod";
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+// ─── API Key Rotation ───────────────────────────────────────────────────────
+// Load multiple Groq API keys for automatic failover when rate limits are hit.
+// Priority: GROQ_API_KEY_1 > GROQ_API_KEY_2 > ... > GROQ_API_KEY (fallback)
+const API_KEYS: string[] = [
+  process.env.GROQ_API_KEY_1,
+  process.env.GROQ_API_KEY_2,
+  process.env.GROQ_API_KEY_3,
+  process.env.GROQ_API_KEY_4,
+  process.env.GROQ_API_KEY_5,
+  process.env.GROQ_API_KEY,  // Fallback to original env var
+].filter((key): key is string => !!key);
+
+if (API_KEYS.length === 0) {
+  throw new Error("No Groq API keys found. Set GROQ_API_KEY or GROQ_API_KEY_1, etc.");
+}
+
+// Create Groq client instances for each key
+const groqClients = API_KEYS.map((key, idx) => ({
+  client: new Groq({ apiKey: key }),
+  keyIndex: idx + 1,
+  isExhausted: false,  // Track if this key is rate-limited
+}));
+
+let currentKeyIndex = 0;
+
+function getGroqClient(): { client: Groq; keyIndex: number } {
+  // Find next available (non-exhausted) key
+  for (let i = 0; i < groqClients.length; i++) {
+    const idx = (currentKeyIndex + i) % groqClients.length;
+    if (!groqClients[idx].isExhausted) {
+      currentKeyIndex = idx;
+      return groqClients[idx];
+    }
+  }
+  // All keys exhausted - reset and try again
+  console.warn("[Groq] All API keys rate-limited, resetting exhaustion flags");
+  groqClients.forEach(c => c.isExhausted = false);
+  currentKeyIndex = 0;
+  return groqClients[0];
+}
+
+function switchToNextKey(): void {
+  // Mark current key as exhausted and move to next
+  groqClients[currentKeyIndex].isExhausted = true;
+  currentKeyIndex = (currentKeyIndex + 1) % groqClients.length;
+  const nextKey = groqClients[currentKeyIndex];
+  console.log(`[Groq] Switching to API key #${nextKey.keyIndex}${nextKey.isExhausted ? ' (exhausted)' : ''}`);
+}
+
+console.log(`[Groq] Initialized with ${API_KEYS.length} API key(s)`);
 
 // ─── Sequential Groq request queue ─────────────────────────────────────────
 // Problem: with CONCURRENCY=4 in the worker, all 4 analysis tasks fire Groq
@@ -185,6 +234,7 @@ async function _analyzePaperInner(
 
     for (let attempt = 0; attempt <= MAX_RETRY; attempt++) {
       try {
+        const { client: groq, keyIndex } = getGroqClient();
         const completion = await groq.chat.completions.create({
           model,
           messages: [
@@ -204,21 +254,27 @@ async function _analyzePaperInner(
         const content = completion.choices[0]?.message?.content ?? "";
         const result  = parseAndValidate(content);
         if (result) {
-          console.log(`[Groq] ✓ ${model} (attempt ${attempt + 1}) → "${title.slice(0, 50)}"`);
+          console.log(`[Groq:Key${keyIndex}] ✓ ${model} (attempt ${attempt + 1}) → "${title.slice(0, 50)}"`);
           return result;
         }
         // Validation failed but no API error — retry same model
-        console.warn(`[Groq] Validation failed on ${model}, attempt ${attempt + 1}`);
+        console.warn(`[Groq:Key${keyIndex}] Validation failed on ${model}, attempt ${attempt + 1}`);
 
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         const isRateLimit = msg.includes("429") || msg.includes("413") || msg.includes("rate_limit");
 
         if (isRateLimit) {
-          const wait = backoffMs(attempt);
-          console.warn(`[Groq] Rate-limit on ${model}, waiting ${Math.round(wait / 1000)}s (attempt ${attempt + 1})…`);
-          await sleep(wait);
-          continue;                      // retry same model after backoff
+          const { keyIndex } = getGroqClient();
+          console.warn(`[Groq:Key${keyIndex}] Rate-limit on ${model}, attempt ${attempt + 1}`);
+          
+          // Switch to next API key immediately
+          switchToNextKey();
+          const { keyIndex: newKeyIndex } = getGroqClient();
+          console.log(`[Groq] Switched to API key #${newKeyIndex}, retrying immediately`);
+          
+          // No sleep needed - we switched keys, can retry immediately
+          continue;
         }
 
         console.error(`[Groq] Error on ${model} for "${title}":`, msg);
