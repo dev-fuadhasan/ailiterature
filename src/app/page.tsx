@@ -46,25 +46,26 @@ export default async function LandingPage() {
       </nav>
 
       {/* Hero */}
-      <section className="relative pt-24 pb-16 md:pt-32 md:pb-20 overflow-hidden">
+      <section className="relative pt-24 pb-16 md:pt-28 md:pb-24 overflow-hidden">
         {/* Sleek background decoration */}
         <div className="absolute inset-0 -z-10 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
         <div className="absolute top-0 inset-x-0 flex justify-center -z-10 pointer-events-none opacity-50">
-          <div className="w-[800px] h-[400px] bg-blue-400/20 blur-[140px] rounded-full mix-blend-multiply"></div>
+          <div className="w-[1000px] h-[500px] bg-blue-400/20 blur-[140px] rounded-full mix-blend-multiply"></div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex flex-col lg:flex-row items-center gap-10 lg:gap-16">
+        {/* Changed max-w-7xl to max-w-6xl to perfectly align the left margin with the Navbar Logo */}
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="flex flex-col lg:flex-row items-center gap-10 lg:gap-14">
             
             {/* Left Column: Copy & CTA */}
-            <div className="flex-1 text-center lg:text-left pt-2 md:pt-6">
+            <div className="flex-1 text-center lg:text-left pt-2 md:pt-4">
               <Badge variant="secondary" className="mb-6 text-blue-700 bg-blue-50/80 hover:bg-blue-100 border border-blue-200/60 rounded-full px-4 py-1.5 shadow-sm transition-colors cursor-default backdrop-blur-sm">
                 <Sparkles className="h-3.5 w-3.5 mr-2" /> Elevate your research
               </Badge>
               <h1 className="text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight text-gray-900 mb-6 leading-[1.1]">
                 AI-powered <span className="block mt-1 text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">literature reviews.</span>
               </h1>
-              <p className="text-base md:text-lg text-gray-500 mb-8 leading-relaxed max-w-xl mx-auto lg:mx-0">
+              <p className="text-lg md:text-xl text-gray-500 mb-8 leading-relaxed max-w-xl mx-auto lg:mx-0">
                 ResearchRoom AI automates your literature review process. Enter your research topic to instantly find, download, and extract key insights from millions of academic research papers into a structured, exportable table.
               </p>
               
@@ -92,15 +93,16 @@ export default async function LandingPage() {
               </div>
             </div>
 
-            {/* Right Column: Product Screenshots */}
-            {/* The user requested clear visibility. Now we stack them beautifully on mobile and stagger them cleanly on desktop without obscuring important parts. */}
-            <div className="flex-[1.2] w-full relative mt-12 lg:mt-0">
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] h-[90%] bg-blue-500/10 blur-[100px] rounded-full pointer-events-none"></div>
+            {/* Right Column: Dynamic Diagonal Stack (PRO UX) */}
+            <div className="flex-[1.3] w-full relative mt-16 flex flex-col items-center lg:items-start group">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100%] h-[100%] bg-blue-500/10 blur-[130px] rounded-full pointer-events-none"></div>
               
-              <div className="relative w-full max-w-2xl mx-auto lg:max-w-none">
-                {/* Main Background Screenshot (App View) */}
-                <div className="relative rounded-xl md:rounded-2xl border border-gray-200/60 bg-white/40 backdrop-blur-lg shadow-2xl w-[90%] md:w-[85%] lg:w-[90%] overflow-hidden ml-auto transform transition-transform duration-700 hover:-translate-y-1 hover:shadow-3xl ring-1 ring-gray-900/5">
-                  <div className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 md:py-3 border-b border-gray-100/60 bg-white/80 backdrop-blur-md">
+              {/* This container bleeds off the right edge so the HD screenshots can remain physically massive and fully readable */}
+              <div className="relative w-full lg:w-[130%] xl:w-[140%] flex flex-col gap-6 md:gap-8 z-10 lg:-mr-32 xl:-mr-48">
+                
+                {/* Main Image (Top & Left) - Content remains 100% visible */}
+                <div className="relative rounded-xl md:rounded-2xl border border-gray-200/60 bg-white/40 backdrop-blur-lg shadow-2xl xl:shadow-3xl overflow-hidden transform transition-all duration-700 hover:-translate-y-2 ring-1 ring-gray-900/5">
+                  <div className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 border-b border-gray-100/60 bg-white/80 backdrop-blur-md">
                     <div className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full bg-red-400 border border-red-500/20"></div>
                     <div className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full bg-amber-400 border border-amber-500/20"></div>
                     <div className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full bg-green-400 border border-green-500/20"></div>
@@ -108,8 +110,8 @@ export default async function LandingPage() {
                   <Image 
                     src="/img1.png"
                     alt="Literature Review Dashboard"
-                    width={1600}
-                    height={900}
+                    width={1920}
+                    height={1080}
                     quality={100}
                     className="w-full h-auto object-cover"
                     priority
@@ -117,18 +119,18 @@ export default async function LandingPage() {
                   />
                 </div>
 
-                {/* Overlapping Focus Screenshot (Details View) */}
-                <div className="absolute -bottom-6 -left-2 md:-bottom-10 md:left-0 lg:-bottom-12 lg:-left-8 rounded-xl md:rounded-2xl border border-white/80 bg-white/95 backdrop-blur-xl shadow-2xl overflow-hidden w-[75%] md:w-[65%] lg:w-[60%] z-10 transition-all duration-500 hover:-translate-y-2 hover:scale-[1.02] hover:shadow-blue-900/20 ring-1 ring-gray-900/10">
-                  <div className="flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1.5 md:py-2 border-b border-gray-100/80 bg-gray-50/80">
-                    <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-gray-300"></div>
-                    <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-gray-300"></div>
-                    <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-gray-300"></div>
+                {/* Second Image - Placed below with a slight upwards shift. Overlaps ONLY the bottom frame of Image 1! */}
+                <div className="relative w-[95%] md:w-[92%] self-end rounded-xl md:rounded-2xl border border-gray-200/80 bg-white/95 backdrop-blur-xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] overflow-hidden z-20 transform transition-all duration-500 hover:-translate-y-2 ring-1 ring-gray-900/10 lg:-mt-16 xl:-mt-24">
+                  <div className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 border-b border-gray-100/80 bg-gray-50/80">
+                    <div className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full bg-gray-300"></div>
+                    <div className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full bg-gray-300"></div>
+                    <div className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full bg-gray-300"></div>
                   </div>
                   <Image 
                     src="/img2.png"
                     alt="Literature Review Process Analysis"
-                    width={1200}
-                    height={800}
+                    width={1920}
+                    height={1080}
                     quality={100}
                     className="w-full h-auto object-cover"
                     priority
