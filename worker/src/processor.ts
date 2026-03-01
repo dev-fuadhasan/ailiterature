@@ -2,7 +2,7 @@
 import prisma from "./lib/prisma";
 import { uploadBuffer } from "./lib/r2";
 import { ResearchJobData } from "./lib/queue";
-import { searchGoogleScholar, GoogleScholarPaper } from "./services/google-scholar";
+import { searchGoogleScholar, GoogleScholarPaper, isKnownOAUrl } from "./services/google-scholar";
 import { analyzePaper, ExtractionResult } from "./services/groq-analyzer";
 import { resolveAndFetchPdf } from "./services/pdf-resolver";
 import { shouldStop, markShouldStop, clearStop } from "./lib/stop-signal";
@@ -86,6 +86,17 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
         return { ...paper, score, quartile };
       })
       .sort((a, b) => b.score - a.score);
+
+    // --- OA-domain papers first -------------------------------------------
+    // Papers whose landing URL belongs to a known open-access platform are
+    // partitioned to the front of the processing queue. Within each partition
+    // the existing relevance/citation score order is preserved.
+    // This ensures the OA PDF Downloader API is called on the most likely-to-
+    // succeed URLs first, maximising throughput and reducing wasted API credits.
+    const oaRanked    = ranked.filter((p) => isKnownOAUrl(p.gsUrl));
+    const nonOaRanked = ranked.filter((p) => !isKnownOAUrl(p.gsUrl));
+    ranked.splice(0, ranked.length, ...oaRanked, ...nonOaRanked);
+    console.log(`[Worker] OA-domain papers: ${oaRanked.length} (sent first) | non-OA: ${nonOaRanked.length}`);
 
     await prisma.project.update({ where: { id: projectId }, data: { status: "DOWNLOADING", totalPapers: maxPapers } });
 

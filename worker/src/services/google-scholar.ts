@@ -3,6 +3,68 @@ import axios from "axios";
 const SCRAPINGDOG_KEY = process.env.SCRAPINGDOG_API_KEY || "";
 const BASE_URL = "https://api.scrapingdog.com/google_scholar";
 
+// ---------------------------------------------------------------------------
+// Known open-access domain patterns — used to prioritise PDF resolution.
+// Papers whose gsUrl matches any pattern are processed first by the OA PDF
+// Downloader API (they are far more likely to yield a free full-text PDF).
+// ---------------------------------------------------------------------------
+const OA_DOMAIN_PATTERNS: RegExp[] = [
+  // Group 1 — Major Publishers & Aggregators
+  /pmc\.ncbi\.nlm\.nih\.gov/,
+  /pubmed\.ncbi\.nlm\.nih\.gov/,
+  /arxiv\.org/,
+  /biorxiv\.org/,
+  /medrxiv\.org/,
+  /journals\.plos\.org/,
+  /springeropen\.com/,
+  /biomedcentral\.com/,
+  /nature\.com\/articles\//,
+  // Group 2 — Elsevier / ScienceDirect
+  /sciencedirect\.com/,
+  // Group 3 — Frontiers
+  /frontiersin\.org/,
+  // Group 4 — MDPI
+  /mdpi\.com/,
+  // Group 5 — Wiley / Hindawi
+  /onlinelibrary\.wiley\.com/,
+  /hindawi\.com/,
+  // Group 6 — IEEE & ACM
+  /ieeexplore\.ieee\.org/,
+  /dl\.acm\.org/,
+  // Group 7 — Repositories & Preprint Servers
+  /zenodo\.org/,
+  /europepmc\.org/,
+  /semanticscholar\.org/,
+  /researchgate\.net/,
+  /ssrn\.com/,
+  /osf\.io\/preprints\//,
+  /chemrxiv\.org/,
+  // Group 8 — Institutional & Regional OA
+  /doaj\.org/,
+  /scielo\.(br|org)/,
+  /ajol\.info/,
+  /eric\.ed\.gov/,
+  /core\.ac\.uk/,
+  /base-search\.net/,
+  // Group 9 — Specialty / Domain Journals
+  /elifesciences\.org/,
+  /peerj\.com/,
+  /f1000research\.com/,
+  /royalsocietypublishing\.org/,
+  /academic\.oup\.com/,
+  /cambridge\.org\/core/,
+  /tandfonline\.com/,
+  /journals\.sagepub\.com/,
+  /egusphere\.net/,
+  /geoscientificmodeldev\.net/,
+];
+
+/** Returns true if the URL belongs to a known open-access domain. */
+export function isKnownOAUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  return OA_DOMAIN_PATTERNS.some((pattern) => pattern.test(url));
+}
+
 export interface GoogleScholarPaper {
   title: string;
   doi: string | null;
@@ -193,19 +255,39 @@ export async function searchGoogleScholar(
     return [];
   }
 
-  // Single query — ScrapingDog is called ONCE per page, not 3×.
-  // We paginate through enough pages to collect maxResults raw results.
-  const query = topic.trim();
-  const pagesToFetch = Math.max(1, Math.ceil(maxResults / 100));
+  // Build three complementary queries:
+  //   1. Full title (exact user input)
+  //   2. First half of words
+  //   3. Last half of words
+  // This casts a wider net on Google Scholar to surface papers that GS doesn't
+  // return for the full-length query (truncation biases, variant phrasings, etc.).
+  const fullTitle = topic.trim();
+  const words = fullTitle.split(/\s+/).filter(Boolean);
+  const mid = Math.ceil(words.length / 2);
+  const firstHalf = words.slice(0, mid).join(" ");
+  const lastHalf  = words.slice(mid).join(" ");
+
+  // Deduplicate queries in case the title is very short (≤ 2 words)
+  const queries: string[] = [fullTitle];
+  if (firstHalf && firstHalf !== fullTitle) queries.push(firstHalf);
+  if (lastHalf  && lastHalf  !== fullTitle && lastHalf !== firstHalf) queries.push(lastHalf);
+
+  console.log(`[GS] Search queries (${queries.length}): ${queries.map((q) => `"${q}"`).join(", ")}`);
+
+  // Distribute page budget evenly across queries
+  const pagesToFetch = Math.max(1, Math.ceil((maxResults * 1.5) / (100 * queries.length)));
 
   const allRaw: RawGSResult[] = [];
 
-  for (let page = 0; page < pagesToFetch; page++) {
-    const results = await fetchOnePage(query, yearFrom, yearTo, page);
-    console.log(`[GS] Page ${page}: ${results.length} results`);
-    if (results.length === 0) break;
-    allRaw.push(...results);
-    if (allRaw.length >= maxResults * 1.2) break; // enough raw material
+  for (const query of queries) {
+    for (let page = 0; page < pagesToFetch; page++) {
+      const results = await fetchOnePage(query, yearFrom, yearTo, page);
+      console.log(`[GS] Query "${query}" page ${page}: ${results.length} results`);
+      if (results.length === 0) break;
+      allRaw.push(...results);
+      // Stop early once we have more than enough raw material from all queries
+      if (allRaw.length >= maxResults * 4) break;
+    }
   }
 
   const seen = new Set<string>();
