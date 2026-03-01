@@ -280,9 +280,15 @@ export default async function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-gray-200 mt-10 bg-white">
         <div className="max-w-6xl mx-auto px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-gray-500">
-          <div className="flex items-center gap-2 font-medium text-gray-800">
-            <BookOpen className="h-4 w-4 text-blue-600" /> ResearchRoom AI
-          </div>
+          <Link href="/" className="hover:opacity-80 transition-opacity">
+            <Image 
+              src="/logo.png" 
+              alt="ResearchRoom AI Logo" 
+              width={100} 
+              height={100}
+              className="object-contain"
+            />
+          </Link>
           <div className="flex items-center gap-2">
             <Globe className="h-4 w-4 text-gray-400" />
             <span>Searching 250M+ academic papers globally</span>
