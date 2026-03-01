@@ -1,4 +1,5 @@
 import Groq from "groq-sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { z } from "zod";
 
 // ─── API Key Rotation ───────────────────────────────────────────────────────
@@ -51,6 +52,42 @@ function switchToNextKey(): void {
 }
 
 console.log(`[Groq] Initialized with ${API_KEYS.length} API key(s)`);
+
+// ─── Google Gemini Setup (Fallback) ────────────────────────────────────────
+// Gemini Free Tier: 15 RPM, 1M TPM, 1500 RPD - much better than Groq!
+const GEMINI_KEYS: string[] = [
+  process.env.GEMINI_API_KEY_1,
+  process.env.GEMINI_API_KEY_2,
+  process.env.GEMINI_API_KEY_3,
+  process.env.GEMINI_API_KEY,  // Fallback
+].filter((key): key is string => !!key);
+
+const geminiClients = GEMINI_KEYS.map((key, idx) => ({
+  client: new GoogleGenerativeAI(key).getGenerativeModel({ model: "gemini-1.5-flash" }),
+  keyIndex: idx + 1,
+  isExhausted: false,
+}));
+
+let currentGeminiIndex = 0;
+
+function getGeminiClient() {
+  if (geminiClients.length === 0) return null;
+  for (let i = 0; i < geminiClients.length; i++) {
+    const idx = (currentGeminiIndex + i) % geminiClients.length;
+    if (!geminiClients[idx].isExhausted) {
+      currentGeminiIndex = idx;
+      return geminiClients[idx];
+    }
+  }
+  // All exhausted - reset
+  geminiClients.forEach(c => c.isExhausted = false);
+  currentGeminiIndex = 0;
+  return geminiClients[0];
+}
+
+if (geminiClients.length > 0) {
+  console.log(`[Gemini] Initialized with ${geminiClients.length} API key(s) as fallback`);
+}
 
 // ─── Sequential Groq request queue ─────────────────────────────────────────
 // Problem: with CONCURRENCY=4 in the worker, all 4 analysis tasks fire Groq
@@ -226,15 +263,25 @@ async function _analyzePaperInner(
   title: string,
   abstractOnly = false,
 ): Promise<ExtractionResult | null> {
+  // Try Groq first (all models, all keys)
   for (const { id: model, maxChars } of MODELS) {
     const budget   = abstractOnly ? Math.min(maxChars, 6_000) : maxChars;
     const trimmed  = sectionAwareTrim(paperText, budget);
     const prompt   = buildPrompt(trimmed, abstractOnly);
-    const MAX_RETRY = 3;
-
-    for (let attempt = 0; attempt <= MAX_RETRY; attempt++) {
+    
+    // Try each Groq key once for this model
+    const keysTried = new Set<number>();
+    while (keysTried.size < groqClients.length) {
       try {
         const { client: groq, keyIndex } = getGroqClient();
+        
+        // If we've already tried this key for this model, skip
+        if (keysTried.has(keyIndex)) {
+          switchToNextKey();
+          continue;
+        }
+        keysTried.add(keyIndex);
+        
         const completion = await groq.chat.completions.create({
           model,
           messages: [
@@ -246,7 +293,7 @@ async function _analyzePaperInner(
             },
             { role: "user", content: prompt },
           ],
-          temperature  : 0.05,          // near-deterministic for structured extraction
+          temperature  : 0.05,
           max_tokens   : 1_500,
           response_format: { type: "json_object" },
         });
@@ -254,11 +301,10 @@ async function _analyzePaperInner(
         const content = completion.choices[0]?.message?.content ?? "";
         const result  = parseAndValidate(content);
         if (result) {
-          console.log(`[Groq:Key${keyIndex}] ✓ ${model} (attempt ${attempt + 1}) → "${title.slice(0, 50)}"`);
+          console.log(`[Groq:Key${keyIndex}] ✓ ${model} → "${title.slice(0, 50)}"`);
           return result;
         }
-        // Validation failed but no API error — retry same model
-        console.warn(`[Groq:Key${keyIndex}] Validation failed on ${model}, attempt ${attempt + 1}`);
+        console.warn(`[Groq:Key${keyIndex}] Validation failed on ${model}`);
 
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -266,23 +312,52 @@ async function _analyzePaperInner(
 
         if (isRateLimit) {
           const { keyIndex } = getGroqClient();
-          console.warn(`[Groq:Key${keyIndex}] Rate-limit on ${model}, attempt ${attempt + 1}`);
-          
-          // Switch to next API key immediately
+          console.warn(`[Groq:Key${keyIndex}] Rate-limit on ${model}, switching to next key...`);
           switchToNextKey();
-          const { keyIndex: newKeyIndex } = getGroqClient();
-          console.log(`[Groq] Switched to API key #${newKeyIndex}, retrying immediately`);
-          
-          // No sleep needed - we switched keys, can retry immediately
-          continue;
+          continue;  // Try next key immediately
         }
 
-        console.error(`[Groq] Error on ${model} for "${title}":`, msg);
-        break;                           // non-rate-limit error → try next model
+        console.error(`[Groq] Error on ${model}:`, msg);
+        break;  // Non-rate-limit error → try next model
       }
     }
   }
 
-  console.error(`[Groq] All models exhausted for "${title}"`);
+  // All Groq attempts failed - try Gemini as fallback
+  const geminiClient = getGeminiClient();
+  if (geminiClient) {
+    console.log(`[Gemini] Groq exhausted, trying Gemini fallback for "${title.slice(0, 50)}"...`);
+    const budget = abstractOnly ? 6_000 : 30_000;
+    const trimmed = sectionAwareTrim(paperText, budget);
+    const prompt = buildPrompt(trimmed, abstractOnly);
+    
+    try {
+      const result = await geminiClient.client.generateContent({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 1500,
+          responseMimeType: "application/json",
+        },
+      });
+      
+      const content = result.response.text();
+      const parsed = parseAndValidate(content);
+      if (parsed) {
+        console.log(`[Gemini:Key${geminiClient.keyIndex}] ✓ gemini-1.5-flash → "${title.slice(0, 50)}"`);
+        return parsed;
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("429") || msg.includes("quota")) {
+        geminiClient.isExhausted = true;
+        console.warn(`[Gemini:Key${geminiClient.keyIndex}] Rate-limited`);
+      } else {
+        console.error(`[Gemini] Error:`, msg);
+      }
+    }
+  }
+
+  console.error(`[AI] All providers exhausted for "${title}"`);
   return null;
 }  // end _analyzePaperInner
