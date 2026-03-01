@@ -56,21 +56,21 @@ export default async function LandingPage() {
       </nav>
 
       {/* Hero */}
-      <section className="relative pt-36 pb-24 overflow-hidden">
+      <section className="relative pt-28 pb-20 md:pt-36 md:pb-32 overflow-hidden">
         {/* Sleek background decoration */}
         <div className="absolute inset-0 -z-10 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
         <div className="absolute top-0 inset-x-0 flex justify-center -z-10 pointer-events-none opacity-50">
-          <div className="w-[800px] h-[400px] bg-blue-400/20 blur-[120px] rounded-full mix-blend-multiply"></div>
+          <div className="w-[800px] h-[400px] bg-blue-400/20 blur-[140px] rounded-full mix-blend-multiply"></div>
         </div>
 
-        <div className="max-w-5xl mx-auto px-6 text-center">
+        <div className="max-w-6xl mx-auto px-6 text-center">
           <Badge variant="secondary" className="mb-6 text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200/60 rounded-full px-4 py-1.5 shadow-sm transition-colors cursor-default">
             <Sparkles className="h-3.5 w-3.5 mr-2" /> Elevate your research
           </Badge>
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-gray-900 mb-8 max-w-4xl mx-auto leading-[1.1]">
+          <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-gray-900 mb-6 max-w-4xl mx-auto leading-[1.1]">
             AI-powered <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">literature reviews.</span>
           </h1>
-          <p className="text-lg md:text-xl text-gray-500 max-w-2xl mx-auto mb-10 leading-relaxed">
+          <p className="text-lg md:text-xl text-gray-500 max-w-2xl mx-auto mb-8 leading-relaxed">
             ResearchRoom AI automates your literature review process. Enter your research topic to instantly find, download, and extract key insights from millions of academic research papers into a structured, exportable table.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -96,11 +96,13 @@ export default async function LandingPage() {
             )}
           </div>
 
-          {/* Product Screenshots showcase */}
-          <div className="mt-20 md:mt-28 relative max-w-5xl mx-auto w-full">
+          {/* Product Screenshots showcase right in the Hero */}
+          <div className="mt-16 md:mt-20 relative max-w-5xl mx-auto w-full perspective-[2000px]">
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] h-[70%] bg-blue-500/10 blur-[120px] rounded-[100%] pointer-events-none"></div>
+            
             {/* Main Background Screenshot (App View) */}
-            <div className="relative rounded-2xl border border-gray-200/50 bg-white/40 backdrop-blur-md shadow-2xl xl:w-[90%] w-full overflow-hidden mx-auto">
-              <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100/50 bg-gray-50/50 backdrop-blur-sm">
+            <div className="relative rounded-2xl border border-gray-200/60 bg-white/40 backdrop-blur-lg shadow-2xl xl:w-[95%] w-full overflow-hidden mx-auto transform transition-transform duration-700 hover:scale-[1.01]">
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100/60 bg-white/60 backdrop-blur-md">
                 <div className="w-3 h-3 rounded-full bg-red-400 border border-red-500/20 shadow-sm"></div>
                 <div className="w-3 h-3 rounded-full bg-amber-400 border border-amber-500/20 shadow-sm"></div>
                 <div className="w-3 h-3 rounded-full bg-green-400 border border-green-500/20 shadow-sm"></div>
@@ -110,14 +112,14 @@ export default async function LandingPage() {
                 alt="Literature Review Dashboard"
                 width={1600}
                 height={900}
-                className="w-full h-auto object-cover ring-1 ring-gray-900/5"
+                className="w-full h-auto object-cover"
                 priority
               />
             </div>
 
             {/* Overlapping Focus Screenshot (Details View) */}
-            <div className="absolute -bottom-10 -right-4 md:-bottom-16 md:-right-8 rounded-2xl border border-gray-200 bg-white/95 backdrop-blur-xl shadow-2xl overflow-hidden w-[75%] md:w-[65%] lg:w-[55%] z-10 transition-transform duration-500 hover:-translate-y-2 hover:shadow-3xl ring-1 ring-gray-900/10 hidden sm:block">
-              <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100/50 bg-gray-50/50">
+            <div className="absolute -bottom-8 -right-2 md:-bottom-12 md:-right-8 rounded-2xl border border-white/60 bg-white/95 backdrop-blur-xl shadow-2xl overflow-hidden w-[80%] md:w-[60%] lg:w-[50%] z-10 transition-all duration-500 hover:-translate-y-3 hover:scale-[1.02] hover:shadow-blue-900/15 hidden sm:block">
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100/80 bg-gray-50/80">
                 <div className="w-3 h-3 rounded-full bg-gray-300 shadow-sm"></div>
                 <div className="w-3 h-3 rounded-full bg-gray-300 shadow-sm"></div>
                 <div className="w-3 h-3 rounded-full bg-gray-300 shadow-sm"></div>
