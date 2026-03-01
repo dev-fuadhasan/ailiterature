@@ -35,9 +35,13 @@ export default function NewProjectPage() {
     setLoading(true);
 
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 20000);
+
       const res = await fetch("/api/projects", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           topic: form.topic.trim(),
           yearFrom: parseInt(form.yearFrom),
@@ -45,16 +49,24 @@ export default function NewProjectPage() {
           maxPapers: parseInt(form.maxPapers),
         }),
       });
+      clearTimeout(timeout);
 
       if (!res.ok) {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({ error: "Failed to create project" }));
         throw new Error(data.error || "Failed to create project");
       }
 
       const { projectId } = await res.json();
+      if (!projectId) {
+        throw new Error("Project was created but no project ID was returned");
+      }
       router.push(`/project/${projectId}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      if (err instanceof Error && err.name === "AbortError") {
+        setError("Starting review took too long. Please try again.");
+      } else {
+        setError(err instanceof Error ? err.message : "Something went wrong");
+      }
       setLoading(false);
     }
   }

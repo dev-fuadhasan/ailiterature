@@ -25,6 +25,19 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  let effectiveProject = project;
+  const pendingMs = Date.now() - new Date(project.createdAt).getTime();
+  if (project.status === "PENDING" && pendingMs > 90_000) {
+    effectiveProject = await prisma.project.update({
+      where: { id: project.id },
+      data: {
+        status: "FAILED",
+        errorMessage:
+          "Job stayed queued too long. Worker may be offline or connected to a different database/redis configuration.",
+      },
+    });
+  }
+
   const projectPapers = await prisma.projectPaper.findMany({
     where: { projectId: id, extractionStatus: "COMPLETED" },
     include: {
@@ -60,7 +73,7 @@ export async function GET(
     extractionStatus: pp.extractionStatus,
   }));
 
-  return NextResponse.json({ ...project, papers });
+  return NextResponse.json({ ...effectiveProject, papers });
 }
 
 // DELETE /api/projects/[id]

@@ -3,6 +3,21 @@ import { createClient } from "@/lib/supabase/server";
 import prisma from "@/lib/prisma";
 import { researchQueue } from "@/lib/queue";
 
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+    promise
+      .then((result) => {
+        clearTimeout(timer);
+        resolve(result);
+      })
+      .catch((error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
+  });
+}
+
 // GET /api/projects — list user's projects
 export async function GET() {
   const supabase = await createClient();
@@ -54,14 +69,18 @@ export async function POST(request: Request) {
   });
 
   try {
-    const job = await researchQueue.add("process-project", {
-      projectId: project.id,
-      userId: user.id,
-      topic: topic.trim(),
-      yearFrom,
-      yearTo,
-      maxPapers: Math.min(maxPapers || 100, 200),
-    });
+    const job = await withTimeout(
+      researchQueue.add("process-project", {
+        projectId: project.id,
+        userId: user.id,
+        topic: topic.trim(),
+        yearFrom,
+        yearTo,
+        maxPapers: Math.min(maxPapers || 100, 200),
+      }),
+      8000,
+      "Queue enqueue timed out"
+    );
 
     await prisma.project.update({
       where: { id: project.id },
