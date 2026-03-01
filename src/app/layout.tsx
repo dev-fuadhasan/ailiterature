@@ -13,14 +13,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LiteratureAI — Automated Literature Review",
+  title: "ResearchRoom AI — Automated Literature Review",
   description:
     "AI-powered academic literature review. Search thousands of papers, get structured insights instantly.",
   openGraph: {
-    title: "LiteratureAI",
+    title: "ResearchRoom AI",
     description: "AI-powered academic literature review platform",
-    url: "https://literatureai.vercel.app",
-    siteName: "LiteratureAI",
+    url: "https://researchroomai.vercel.app",
+    siteName: "ResearchRoom AI",
   },
 };
 

@@ -26,7 +26,7 @@ export default async function LandingPage() {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <BookOpen className="h-6 w-6 text-blue-600" />
-            <span className="font-bold text-xl text-gray-900">LiteratureAI</span>
+            <span className="font-bold text-xl text-gray-900">ResearchRoom AI</span>
           </div>
           <div className="flex items-center gap-3">
             {isSignedIn ? (
@@ -59,7 +59,7 @@ export default async function LandingPage() {
           <span className="text-blue-600">Minutes, Not Weeks</span>
         </h1>
         <p className="text-xl text-gray-500 max-w-3xl mx-auto mb-10">
-          Enter your research topic. LiteratureAI searches 250M+ papers, finds free
+          Enter your research topic. ResearchRoom AI searches 250M+ papers, finds free
           full-text PDFs, reads them with AI, and delivers a structured review table
           — ready to export as CSV.
         </p>
@@ -140,7 +140,7 @@ export default async function LandingPage() {
             Ready to Accelerate Your Research?
           </h2>
           <p className="text-blue-100 mb-8 text-lg">
-            Join researchers who use LiteratureAI to save weeks of manual work.
+            Join researchers who use ResearchRoom AI to save weeks of manual work.
           </p>
           {isSignedIn ? (
             <Link href="/dashboard">
@@ -161,7 +161,7 @@ export default async function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-gray-200 py-8">
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between text-sm text-gray-500">
-          <span>© 2026 LiteratureAI. All rights reserved.</span>
+          <span>© 2026 ResearchRoom AI. All rights reserved.</span>
           <div className="flex items-center gap-2">
             <Globe className="h-4 w-4" />
             <span>Searches 250M+ papers worldwide</span>

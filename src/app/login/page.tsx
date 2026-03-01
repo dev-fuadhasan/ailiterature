@@ -31,7 +31,7 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="flex items-center justify-center gap-2 mb-8">
           <BookOpen className="h-8 w-8 text-blue-600" />
-          <span className="font-bold text-2xl text-gray-900">LiteratureAI</span>
+          <span className="font-bold text-2xl text-gray-900">ResearchRoom AI</span>
         </div>
 
         <Card>

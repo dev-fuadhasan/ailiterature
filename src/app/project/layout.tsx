@@ -18,7 +18,7 @@ export default async function ProjectLayout({
         <div className="p-6 border-b border-gray-100">
           <Link href="/dashboard" className="flex items-center gap-2">
             <BookOpen className="h-6 w-6 text-blue-600" />
-            <span className="font-bold text-gray-900">LiteratureAI</span>
+            <span className="font-bold text-gray-900">ResearchRoom AI</span>
           </Link>
         </div>
         <nav className="flex-1 p-4 space-y-1">
