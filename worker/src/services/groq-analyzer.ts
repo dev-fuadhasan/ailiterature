@@ -4,13 +4,15 @@ import { z } from "zod";
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 // ─── Model roster (ordered: quality → speed → fallback) ────────────────────
-// llama-3.3-70b-versatile : 128K ctx, 6K TPM  — best extraction quality
-// llama-3.1-8b-instant    : 128K ctx, 20K TPM  — high-throughput fallback
-// gemma2-9b-it            : 8K ctx,  15K TPM  — last-resort tiny fallback
+// llama-3.3-70b-versatile : 131K ctx, 32K max-completion, 300K TPM — best quality
+// openai/gpt-oss-120b     : 131K ctx, 65K max-completion, 250K TPM — large fallback
+// openai/gpt-oss-20b      : 131K ctx, 65K max-completion, 250K TPM — fast fallback
+// llama-3.1-8b-instant    : 131K ctx, 131K max-completion, 250K TPM — high-throughput last resort
 const MODELS: { id: string; maxChars: number }[] = [
   { id: "llama-3.3-70b-versatile", maxChars: 48_000 },
-  { id: "llama-3.1-8b-instant",    maxChars: 72_000 },
-  { id: "gemma2-9b-it",            maxChars: 16_000 },
+  { id: "openai/gpt-oss-120b",     maxChars: 80_000 },
+  { id: "openai/gpt-oss-20b",      maxChars: 80_000 },
+  { id: "llama-3.1-8b-instant",    maxChars: 90_000 },
 ];
 
 // ─── Zod schema — validates & coerces AI output ────────────────────────────
