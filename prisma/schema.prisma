@@ -3,98 +3,116 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
 }
 
-// NextAuth Models
-model Account {
-  id                 String  @id @default(cuid())
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String?  @db.Text
-  access_token       String?  @db.Text
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String?  @db.Text
-  session_state      String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
+enum ProjectStatus {
+  PENDING
+  SEARCHING
+  DOWNLOADING
+  ANALYZING
+  COMPLETED
+  FAILED
+  STOPPED
 }
 
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+enum ExtractionStatus {
+  PENDING
+  ABSTRACT_ONLY
+  COMPLETED
+  FAILED
 }
 
-model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  accounts      Account[]
-  sessions      Session[]
-  searches      SearchQuery[]
+model Profile {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  email     String
+  name      String?
+  avatarUrl String?  @map("avatar_url")
+  plan      String   @default("free")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  projects Project[]
+
+  @@map("profiles")
 }
 
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
+model Project {
+  id              String        @id @default(uuid())
+  userId          String        @map("user_id")
+  topic           String
+  yearFrom        Int           @map("year_from")
+  yearTo          Int           @map("year_to")
+  maxPapers       Int           @default(100) @map("max_papers")
+  status          ProjectStatus @default(PENDING)
+  totalPapers     Int           @default(0) @map("total_papers")
+  processedPapers Int           @default(0) @map("processed_papers")
+  failedPapers    Int           @default(0) @map("failed_papers")
+  errorMessage    String?       @map("error_message")
+  jobId           String?       @map("job_id")
+  stopRequested   Boolean       @default(false) @map("stop_requested")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
 
-  @@unique([identifier, token])
-}
+  profile       Profile        @relation(fields: [userId], references: [userId])
+  projectPapers ProjectPaper[]
 
-// Application Models
-model SearchQuery {
-  id          String   @id @default(cuid())
-  userId      String
-  topic       String
-  yearStart   Int?
-  yearEnd     Int?
-  quartiles   String[] // Array of strings like "Q1", "Q2"
-  status      String   @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  papers      Paper[]
+  @@map("projects")
 }
 
 model Paper {
-  id               String   @id @default(cuid())
-  searchQueryId    String
-  title            String
-  authors          String?  @db.Text
-  url              String?  @db.Text
-  doi              String?
-  abstract         String?  @db.Text
-  pdfStorageKey    String?
-  isDownloaded     Boolean  @default(false)
-  createdAt        DateTime @default(now())
+  id            String   @id @default(uuid())
+  doi           String?  @unique
+  title         String
+  authors       Json     @default("[]")
+  year          Int?
+  journal       String?
+  abstract      String?
+  citationCount Int?     @map("citation_count")
+  isOpenAccess  Boolean  @default(false) @map("is_open_access")
+  pdfUrl        String?  @map("pdf_url")
+  s3Key         String?  @map("s3_key")
+  quartile      String?
+  sourceApi     String?  @map("source_api")
+  externalIds   Json     @default("{}") @map("external_ids")
+  createdAt     DateTime @default(now()) @map("created_at")
 
-  searchQuery      SearchQuery @relation(fields: [searchQueryId], references: [id], onDelete: Cascade)
-  literatureReview LiteratureReview?
+  projectPapers ProjectPaper[]
+  extraction    Extraction?
+
+  @@map("papers")
 }
 
-model LiteratureReview {
-  id          String   @id @default(cuid())
-  paperId     String   @unique
-  strengths   String?  @db.Text
-  futureWork  String?  @db.Text
-  aiSummary   String?  @db.Text
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model ProjectPaper {
+  id               String           @id @default(uuid())
+  projectId        String           @map("project_id")
+  paperId          String           @map("paper_id")
+  extractionStatus ExtractionStatus @default(PENDING) @map("extraction_status")
+  createdAt        DateTime         @default(now()) @map("created_at")
 
-  paper       Paper    @relation(fields: [paperId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  paper   Paper   @relation(fields: [paperId], references: [id])
+
+  @@unique([projectId, paperId])
+  @@map("project_papers")
+}
+
+model Extraction {
+  id               String   @id @default(uuid())
+  paperId          String   @unique @map("paper_id")
+  methodology      String?
+  findings         String?
+  limitations      String?
+  futureWork       String?  @map("future_work")
+  studyType        String?  @map("study_type")
+  keywords         Json     @default("[]")
+  rawJson          Json?    @map("raw_json")
+  model            String?
+  isAbstractOnly   Boolean  @default(false) @map("is_abstract_only")
+  extractedAt      DateTime @default(now()) @map("extracted_at")
+
+  paper Paper @relation(fields: [paperId], references: [id])
+
+  @@map("extractions")
 }

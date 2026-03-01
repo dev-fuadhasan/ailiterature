@@ -1,23 +1,20 @@
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 
-const prismaClientSingleton = () => {
-    // Supabase uses PgBouncer (transaction mode) which does not support
-    // prepared statements. Adding pgbouncer=true disables them in Prisma.
-    // connection_limit=1 is recommended for Vercel serverless functions.
-    const base = process.env.DATABASE_URL ?? "";
-    const separator = base.includes("?") ? "&" : "?";
-    const url = `${base}${separator}pgbouncer=true&connection_limit=1`;
+function createPrismaClient() {
+  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+  return new PrismaClient({
+    adapter,
+    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
+  });
+}
 
-    return new PrismaClient({
-        datasources: { db: { url } },
-        log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
-    });
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined;
 };
 
-declare const globalThis: {
-    prismaGlobal: ReturnType<typeof prismaClientSingleton>;
-} & typeof global;
+export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 
-export const prisma = globalThis.prismaGlobal ?? prismaClientSingleton();
+if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
-if (process.env.NODE_ENV !== "production") globalThis.prismaGlobal = prisma;
+export default prisma;

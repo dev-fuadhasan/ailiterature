@@ -1,14 +1,27 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { SessionProvider } from "@/components/providers/SessionProvider";
-import { Navbar } from "@/components/layout/Navbar";
 
-const inter = Inter({ subsets: ["latin"] });
+const geist = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
 
 export const metadata: Metadata = {
-  title: "AI Literature Review SaaS",
-  description: "Automate discovering, reading, and synthesizing research papers.",
+  title: "LiteratureAI — Automated Literature Review",
+  description:
+    "AI-powered academic literature review. Search thousands of papers, get structured insights instantly.",
+  openGraph: {
+    title: "LiteratureAI",
+    description: "AI-powered academic literature review platform",
+    url: "https://literatureai.vercel.app",
+    siteName: "LiteratureAI",
+  },
 };
 
 export default function RootLayout({
@@ -18,13 +31,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.className} min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-50 antialiased`}>
-        <SessionProvider>
-          <Navbar />
-          <main className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
-            {children}
-          </main>
-        </SessionProvider>
+      <body className={`${geist.variable} ${geistMono.variable} font-sans antialiased bg-gray-50`}>
+        {children}
       </body>
     </html>
   );

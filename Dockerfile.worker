@@ -1,0 +1,26 @@
+# Build from repo root so we have access to both prisma/ and worker/
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install worker dependencies
+COPY worker/package*.json ./
+RUN npm install --production=false
+
+# Copy prisma schema
+COPY prisma ./prisma
+
+# Create a docker-specific prisma.config.ts with correct schema path
+RUN printf "import { defineConfig } from 'prisma/config';\nexport default defineConfig({ earlyAccess: true, schema: './prisma/schema.prisma', datasource: { url: 'postgresql://placeholder' } });\n" > prisma.config.ts
+
+# Generate Prisma client
+RUN npx prisma generate
+
+# Copy worker source and build
+COPY worker/tsconfig.json ./
+COPY worker/src ./src
+RUN npx tsc
+
+ENV NODE_ENV=production
+
+CMD ["node", "dist/index.js"]

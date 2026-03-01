@@ -1,0 +1,102 @@
+{
+  "generatedAt": "2026-03-01T01:36:05.469Z",
+  "allPublicTables": [
+    "Account",
+    "LiteratureReview",
+    "Paper",
+    "SearchQuery",
+    "Session",
+    "User",
+    "VerificationToken",
+    "extractions",
+    "papers",
+    "profiles",
+    "project_papers",
+    "projects"
+  ],
+  "currentTables": [
+    "profiles",
+    "projects",
+    "papers",
+    "project_papers",
+    "extractions"
+  ],
+  "legacyTables": [
+    "Account",
+    "LiteratureReview",
+    "Paper",
+    "SearchQuery",
+    "Session",
+    "User",
+    "VerificationToken"
+  ],
+  "legacyRowCounts": [
+    {
+      "table": "Account",
+      "count": 1
+    },
+    {
+      "table": "LiteratureReview",
+      "count": 0
+    },
+    {
+      "table": "Paper",
+      "count": 3
+    },
+    {
+      "table": "SearchQuery",
+      "count": 2
+    },
+    {
+      "table": "Session",
+      "count": 0
+    },
+    {
+      "table": "User",
+      "count": 1
+    },
+    {
+      "table": "VerificationToken",
+      "count": 0
+    }
+  ],
+  "legacyRelatedForeignKeys": [
+    {
+      "source_table": "Account",
+      "source_column": "userId",
+      "target_table": "User",
+      "target_column": "id",
+      "constraint_name": "Account_userId_fkey"
+    },
+    {
+      "source_table": "LiteratureReview",
+      "source_column": "paperId",
+      "target_table": "Paper",
+      "target_column": "id",
+      "constraint_name": "LiteratureReview_paperId_fkey"
+    },
+    {
+      "source_table": "Paper",
+      "source_column": "searchQueryId",
+      "target_table": "SearchQuery",
+      "target_column": "id",
+      "constraint_name": "Paper_searchQueryId_fkey"
+    },
+    {
+      "source_table": "SearchQuery",
+      "source_column": "userId",
+      "target_table": "User",
+      "target_column": "id",
+      "constraint_name": "SearchQuery_userId_fkey"
+    },
+    {
+      "source_table": "Session",
+      "source_column": "userId",
+      "target_table": "User",
+      "target_column": "id",
+      "constraint_name": "Session_userId_fkey"
+    }
+  ],
+  "sqlFile": "scripts/legacy_cleanup.sql",
+  "applyCommand": "node scripts/apply_legacy_cleanup.cjs"
+}

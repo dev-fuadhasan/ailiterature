@@ -1,0 +1,37 @@
+services:
+  - type: worker
+    name: literatureai-worker
+    runtime: node
+    rootDir: worker
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm run start
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET_NAME
+        sync: false
+      - key: R2_ENDPOINT
+        sync: false
+      - key: CORE_API_KEY
+        sync: false
+      - key: UNPAYWALL_EMAIL
+        sync: false
+      - key: OPENALEX_EMAIL
+        sync: false
+      - key: SEMANTIC_SCHOLAR_API_KEY
+        sync: false

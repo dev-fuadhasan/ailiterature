@@ -1,0 +1,13 @@
+app = "literatureai-worker"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile.worker"
+
+[env]
+  NODE_ENV = "production"
+
+# No http_service block — this is a background worker, not a web server
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
