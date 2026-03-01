@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { BookOpen, LayoutDashboard, PlusCircle } from "lucide-react";
+import Image from "next/image";
+import { LayoutDashboard, PlusCircle } from "lucide-react";
 
 export default async function ProjectLayout({
   children,
@@ -17,7 +18,13 @@ export default async function ProjectLayout({
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col fixed h-full">
         <div className="p-6 border-b border-gray-100">
           <Link href="/dashboard" className="flex items-center gap-2">
-            <BookOpen className="h-6 w-6 text-blue-600" />
+            <Image 
+              src="/logo.png" 
+              alt="ResearchRoom AI Logo" 
+              width={24} 
+              height={24}
+              className="object-contain"
+            />
             <span className="font-bold text-gray-900">ResearchRoom AI</span>
           </Link>
         </div>

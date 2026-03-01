@@ -32,9 +32,13 @@ export default async function LandingPage() {
       <nav className="fixed top-0 inset-x-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200/50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-sm">
-              <BookOpen className="h-4 w-4 text-white" />
-            </div>
+            <Image 
+              src="/logo.png" 
+              alt="ResearchRoom AI Logo" 
+              width={32} 
+              height={32}
+              className="object-contain"
+            />
             <span className="font-semibold text-xl tracking-tight">ResearchRoom <span className="text-blue-600">AI</span></span>
           </Link>
           <div className="flex items-center gap-4">

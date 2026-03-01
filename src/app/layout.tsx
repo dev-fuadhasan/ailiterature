@@ -22,6 +22,11 @@ export const metadata: Metadata = {
   keywords: ["literature review AI", "research paper assistant", "AI literature review generator", "academic research tool", "automated literature review", "AI for researchers", "systematic review AI"],
   authors: [{ name: "ResearchRoom AI" }],
   creator: "ResearchRoom AI",
+  icons: {
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/favicon.png",
+  },
   openGraph: {
     type: "website",
     locale: "en_US",

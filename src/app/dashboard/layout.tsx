@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { BookOpen, LayoutDashboard, PlusCircle, LogOut } from "lucide-react";
+import Image from "next/image";
+import { LayoutDashboard, PlusCircle, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default async function DashboardLayout({
@@ -21,7 +22,13 @@ export default async function DashboardLayout({
         {/* Logo */}
         <div className="p-6 border-b border-gray-100">
           <Link href="/dashboard" className="flex items-center gap-2">
-            <BookOpen className="h-6 w-6 text-blue-600" />
+            <Image 
+              src="/logo.png" 
+              alt="ResearchRoom AI Logo" 
+              width={24} 
+              height={24}
+              className="object-contain"
+            />
             <span className="font-bold text-gray-900">ResearchRoom AI</span>
           </Link>
         </div>

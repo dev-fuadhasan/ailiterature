@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { BookOpen, Chrome } from "lucide-react";
+import { Chrome } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 
 export default function LoginPage() {
@@ -30,7 +31,13 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex items-center justify-center gap-2 mb-8">
-          <BookOpen className="h-8 w-8 text-blue-600" />
+          <Image 
+            src="/logo.png" 
+            alt="ResearchRoom AI Logo" 
+            width={32} 
+            height={32}
+            className="object-contain"
+          />
           <span className="font-bold text-2xl text-gray-900">ResearchRoom AI</span>
         </div>
 
