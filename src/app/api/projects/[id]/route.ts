@@ -73,7 +73,12 @@ export async function GET(
     extractionStatus: pp.extractionStatus,
   }));
 
-  return NextResponse.json({ ...effectiveProject, papers });
+  // Override processedPapers with the ground-truth count derived from actual
+  // paper extraction statuses. This prevents drift caused by resume resets or
+  // partial worker crashes making the DB counter diverge from reality.
+  const actualProcessed = papers.filter((p) => p.extractionStatus === "COMPLETED").length;
+
+  return NextResponse.json({ ...effectiveProject, papers, processedPapers: actualProcessed });
 }
 
 // DELETE /api/projects/[id]

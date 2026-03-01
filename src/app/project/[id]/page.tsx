@@ -68,12 +68,14 @@ function LiveAnalysisProgress({
   analyzed,
   maxPapers,
   stopping,
+  resuming,
 }: {
   status: string;
   totalFound: number;
   analyzed: number;
   maxPapers: number;
   stopping: boolean;
+  resuming: boolean;
 }) {
   const [tick, setTick] = useState(0);
   useEffect(() => {
@@ -81,6 +83,18 @@ function LiveAnalysisProgress({
     return () => clearInterval(t);
   }, []);
   const dots = ".".repeat((tick % 4));
+
+  if (resuming) {
+    return (
+      <div className="mt-3 flex items-center gap-2.5 px-3 py-2.5 bg-blue-50 border border-blue-200 rounded-lg">
+        <Play className="h-4 w-4 text-blue-500 shrink-0 animate-pulse" />
+        <div>
+          <p className="text-xs font-semibold text-blue-700">Resuming analysis{dots}</p>
+          <p className="text-xs text-blue-400">Queuing work — the stepper will appear shortly.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (stopping) {
     return (
@@ -374,10 +388,11 @@ export default function ProjectPage() {
     if (!["STOPPED", "FAILED"].includes(project.status)) {
       setResuming(false);
     }
-    if (["COMPLETED", "FAILED", "STOPPED"].includes(project.status)) return;
+    // Keep polling while resuming (project may still show STOPPED until worker picks it up)
+    if (["COMPLETED", "FAILED", "STOPPED"].includes(project.status) && !resuming) return;
     const interval = setInterval(fetchProject, 4000);
     return () => clearInterval(interval);
-  }, [project, fetchProject]);
+  }, [project, fetchProject, resuming]);
 
   async function handleStop() {
     setStopping(true);
@@ -416,7 +431,11 @@ export default function ProjectPage() {
   if (!project) return <div className="p-8 text-center"><p className="text-gray-500">Project not found.</p></div>;
 
   const totalFound = project.papers.length;
-  const fullText = project.papers.filter((p) => p.extractionStatus === "COMPLETED").length;
+  // Ground-truth analyzed count comes from the API (which counts COMPLETED paper statuses directly).
+  // Use project.processedPapers everywhere for consistency with the dashboard card.
+  const analyzedCount = project.processedPapers;
+  // Keep fullText for filtering the paper table only (same source, just aliased for clarity)
+  const fullText = analyzedCount;
 
   const isTerminal = ["COMPLETED", "FAILED", "STOPPED"].includes(project.status);
   // Only treat as fully complete when the backend says COMPLETED AND we hit the target count
@@ -425,7 +444,8 @@ export default function ProjectPage() {
 
   const QUARTILES = ["Q1", "Q2", "Q3", "Q4"];
 
-  // Always show only fully-analyzed (COMPLETED) papers; quartile filter on top
+  // Always show only fully-analyzed (COMPLETED) papers; quartile filter on top.
+  // This count matches analyzedCount (both derived from extractionStatus: "COMPLETED").
   let displayPapers = project.papers.filter((p) => p.extractionStatus === "COMPLETED");
   if (quartileFilter) displayPapers = displayPapers.filter((p) => p.quartile === quartileFilter);
 
@@ -464,8 +484,8 @@ export default function ProjectPage() {
 
         {/* Status card */}
         <div className="mt-4 bg-white rounded-xl border border-gray-200 overflow-hidden">
-          {/* Active / stopping state — just show the stepper */}
-          {(isProcessing || stopping) && (
+          {/* Active / stopping / resuming state — just show the stepper */}
+          {(isProcessing || stopping || resuming) && (
             <div className="p-4">
               <LiveAnalysisProgress
                 status={project.status}
@@ -473,6 +493,7 @@ export default function ProjectPage() {
                 analyzed={fullText}
                 maxPapers={project.maxPapers}
                 stopping={stopping}
+                resuming={resuming}
               />
             </div>
           )}
@@ -489,7 +510,7 @@ export default function ProjectPage() {
           )}
 
           {/* Stopped — show resume */}
-          {project.status === "STOPPED" && !isProcessing && (
+          {project.status === "STOPPED" && !isProcessing && !resuming && (
             <div className="p-4 flex items-center justify-between gap-4 bg-orange-50">
               <div className="flex items-center gap-3">
                 <OctagonX className="h-5 w-5 text-orange-500 shrink-0" />

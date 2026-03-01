@@ -28,9 +28,22 @@ export async function GET() {
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },
     take: 50,
+    include: {
+      _count: {
+        select: {
+          projectPapers: { where: { extractionStatus: "COMPLETED" } },
+        },
+      },
+    },
   });
 
-  return NextResponse.json(projects);
+  // Replace processedPapers with the actual count of completed project papers
+  const result = projects.map(({ _count, ...p }) => ({
+    ...p,
+    processedPapers: _count.projectPapers,
+  }));
+
+  return NextResponse.json(result);
 }
 
 // POST /api/projects — create a new project and enqueue job

@@ -150,9 +150,13 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
         if (seen.has(dedupeKey)) return;
         seen.add(dedupeKey);
       } else {
-        // Phase 2: only retry papers that failed in Phase 1
-        if (!failedDedupeKeys.has(dedupeKey)) return;
-        failedDedupeKeys.delete(dedupeKey);
+        // Phase 2: process Phase 1 failures AND any candidate not yet attempted.
+        // Papers that succeeded in Phase 1 (in `seen` but NOT in `failedDedupeKeys`) are skipped.
+        const wasPhase1Failure = failedDedupeKeys.has(dedupeKey);
+        const neverAttempted   = !seen.has(dedupeKey);
+        if (!wasPhase1Failure && !neverAttempted) return; // skip Phase 1 successes
+        if (wasPhase1Failure) failedDedupeKeys.delete(dedupeKey);
+        if (neverAttempted)   seen.add(dedupeKey);
       }
 
       let paper = candidate.doi
@@ -361,11 +365,11 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
       }
 
       // ── Phase 2: fallback APIs (Unpaywall, OpenAlex, Semantic Scholar, HTML) ──
-      // Only runs when Phase 1 did not fulfill the requested paper count.
-      // Process sequentially, one paper at a time.
-      if (analyzedCount < maxPapers && !shouldStop(projectId) && failedDedupeKeys.size > 0) {
+      // Runs whenever Phase 1 did not fulfill the requested paper count.
+      // Retries Phase 1 failures AND processes any candidate not yet attempted.
+      if (analyzedCount < maxPapers && !shouldStop(projectId)) {
         console.log(
-          `[Worker] Phase 2 — Retrying ${failedDedupeKeys.size} papers with fallback APIs ` +
+          `[Worker] Phase 2 — ${failedDedupeKeys.size} Phase-1 failures + fresh candidates ` +
           `(${analyzedCount}/${maxPapers} analyzed so far)`
         );
         
