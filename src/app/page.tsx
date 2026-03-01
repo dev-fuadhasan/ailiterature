@@ -35,21 +35,11 @@ export default async function LandingPage() {
             <span className="font-semibold text-xl tracking-tight">ResearchRoom <span className="text-blue-600">AI</span></span>
           </div>
           <div className="flex items-center gap-4">
-            {isSignedIn ? (
-              <Link href="/dashboard">
-                <Button className="rounded-full shadow-sm gap-2">
-                  <LayoutDashboard className="h-4 w-4" /> Go to Dashboard
-                </Button>
+            {/* Minimalist Top Nav - Primary CTA is now entirely deferred to the Hero section */}
+             {!isSignedIn && (
+              <Link href="/login" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors hidden sm:block">
+                Sign In
               </Link>
-            ) : (
-              <>
-                <Link href="/login" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors hidden sm:block">
-                  Sign In
-                </Link>
-                <Link href="/login">
-                  <Button className="rounded-full shadow-sm px-6">Get Started</Button>
-                </Link>
-              </>
             )}
           </div>
         </div>
