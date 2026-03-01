@@ -42,7 +42,6 @@ export async function POST(request: Request) {
     update: {},
   });
 
-  // Create project
   const project = await prisma.project.create({
     data: {
       userId: user.id,
@@ -54,21 +53,37 @@ export async function POST(request: Request) {
     },
   });
 
-  // Enqueue the research job
-  const job = await researchQueue.add("process-project", {
-    projectId: project.id,
-    userId: user.id,
-    topic: topic.trim(),
-    yearFrom,
-    yearTo,
-    maxPapers: Math.min(maxPapers || 100, 200),
-  });
+  try {
+    const job = await researchQueue.add("process-project", {
+      projectId: project.id,
+      userId: user.id,
+      topic: topic.trim(),
+      yearFrom,
+      yearTo,
+      maxPapers: Math.min(maxPapers || 100, 200),
+    });
 
-  // Save job ID to project
-  await prisma.project.update({
-    where: { id: project.id },
-    data: { jobId: job.id?.toString() },
-  });
+    await prisma.project.update({
+      where: { id: project.id },
+      data: { jobId: job.id?.toString() },
+    });
+  } catch (error) {
+    await prisma.project.update({
+      where: { id: project.id },
+      data: {
+        status: "FAILED",
+        errorMessage: "Queue unavailable. Please try again shortly.",
+      },
+    });
+
+    return NextResponse.json(
+      {
+        error: "Failed to start processing queue",
+        details: error instanceof Error ? error.message : "Unknown queue error",
+      },
+      { status: 503 }
+    );
+  }
 
   return NextResponse.json({ projectId: project.id }, { status: 201 });
 }

@@ -12,7 +12,11 @@ export interface ResearchJobData {
   maxPapers: number;
 }
 
-const redisUrl = new URL(process.env.REDIS_URL || "redis://localhost:6379");
+if (!process.env.REDIS_URL) {
+  throw new Error("REDIS_URL is not configured. Set REDIS_URL in your web runtime environment.");
+}
+
+const redisUrl = new URL(process.env.REDIS_URL);
 const connection = {
   host: redisUrl.hostname,
   port: parseInt(redisUrl.port || "6379"),
@@ -21,6 +25,7 @@ const connection = {
   tls: redisUrl.protocol === "rediss:" ? {} : undefined,
   maxRetriesPerRequest: null as null,
   enableReadyCheck: false,
+  connectTimeout: 8000,
 };
 
 // The single shared queue — used by Next.js to enqueue jobs

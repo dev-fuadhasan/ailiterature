@@ -3,7 +3,11 @@ import type { PaperInput, ResolveOutput } from "@/types/pdf-resolver";
 
 export const PDF_RESOLVER_QUEUE = "pdf-resolver";
 
-const redisUrl = new URL(process.env.REDIS_URL || "redis://localhost:6379");
+if (!process.env.REDIS_URL) {
+  throw new Error("REDIS_URL is not configured. Set REDIS_URL in your web runtime environment.");
+}
+
+const redisUrl = new URL(process.env.REDIS_URL);
 
 const connection = {
   host: redisUrl.hostname,
@@ -13,6 +17,7 @@ const connection = {
   tls: redisUrl.protocol === "rediss:" ? {} : undefined,
   maxRetriesPerRequest: null as null,
   enableReadyCheck: false,
+  connectTimeout: 8000,
 };
 
 /** BullMQ queue for PDF resolution jobs — Next.js enqueues, Railway worker processes. */
