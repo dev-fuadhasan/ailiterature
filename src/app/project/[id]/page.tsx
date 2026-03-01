@@ -4,13 +4,12 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import {
   Download, RefreshCw, ExternalLink, BookOpen,
   ChevronDown, ChevronUp, FileText, AlertCircle,
   Microscope, Lightbulb, AlertTriangle, ArrowRight, Tag, StopCircle,
-  Search, HardDriveDownload, Brain, CheckCircle2, OctagonX,
+  Search, HardDriveDownload, Brain, CheckCircle2, OctagonX, Play, XCircle,
 } from "lucide-react";
 
 interface Extraction {
@@ -351,6 +350,7 @@ export default function ProjectPage() {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [stopping, setStopping] = useState(false);
+  const [resuming, setResuming] = useState(false);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [quartileFilter, setQuartileFilter] = useState<string | null>(null);
 
@@ -370,6 +370,10 @@ export default function ProjectPage() {
     if (["STOPPED", "COMPLETED", "FAILED"].includes(project.status)) {
       setStopping(false);
     }
+    // Clear resuming once job is back in active state
+    if (!["STOPPED", "FAILED"].includes(project.status)) {
+      setResuming(false);
+    }
     if (["COMPLETED", "FAILED", "STOPPED"].includes(project.status)) return;
     const interval = setInterval(fetchProject, 4000);
     return () => clearInterval(interval);
@@ -379,9 +383,18 @@ export default function ProjectPage() {
     setStopping(true);
     try {
       await fetch(`/api/projects/${projectId}/stop`, { method: "POST" });
-      // Keep polling; stopping flag will clear once status flips to STOPPED
       setTimeout(fetchProject, 1500);
     } catch { alert("Failed to send stop request."); setStopping(false); }
+  }
+
+  async function handleResume() {
+    setResuming(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/resume`, { method: "POST" });
+      if (!res.ok) { alert("Failed to resume."); setResuming(false); return; }
+      // Start polling again
+      setTimeout(fetchProject, 1500);
+    } catch { alert("Failed to resume."); setResuming(false); }
   }
 
   async function handleExport() {
@@ -409,8 +422,6 @@ export default function ProjectPage() {
   // Only treat as fully complete when the backend says COMPLETED AND we hit the target count
   const isActuallyComplete = project.status === "COMPLETED" && fullText >= project.maxPapers;
   const isProcessing = !isTerminal || (!isActuallyComplete && project.status === "COMPLETED");
-
-  const progress = project.maxPapers > 0 ? Math.min(100, Math.round((fullText / project.maxPapers) * 100)) : 0;
 
   const QUARTILES = ["Q1", "Q2", "Q3", "Q4"];
 
@@ -451,50 +462,65 @@ export default function ProjectPage() {
           </div>
         </div>
 
-        {/* Status bar */}
-        <div className="mt-4 p-4 bg-white rounded-xl border border-gray-200">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              {isProcessing && !stopping && <Spinner size="sm" />}
-              <span className="text-sm font-medium text-gray-700">
-                {stopping
-                  ? "Stopping analysis..."
-                  : isActuallyComplete
-                  ? "✅ Analysis complete"
-                  : STATUS_LABELS[project.status] || project.status}
-              </span>
-            </div>
-            {project.maxPapers > 0 && (
-              <span className="text-xs text-gray-400">{fullText} of {project.maxPapers} analyzed ({progress}%)</span>
-            )}
-          </div>
-          {project.maxPapers > 0 && <Progress value={progress} className="h-2 mb-3" />}
-          {/* Stats pills */}
-          {totalFound > 0 && (
-            <div className="flex flex-wrap gap-2 text-xs">
-              <span className="px-2.5 py-1 bg-gray-100 rounded-full text-gray-700 font-medium">{totalFound} found</span>
-              <span className={`px-2.5 py-1 rounded-full font-medium ${isActuallyComplete ? "bg-green-100 text-green-800" : "bg-blue-100 text-blue-800"}`}>
-                {isActuallyComplete ? "✓" : "⟳"} {fullText} of {project.maxPapers} analyzed
-              </span>
-            </div>
-          )}
-
-          {/* Live step-by-step progress while processing */}
+        {/* Status card */}
+        <div className="mt-4 bg-white rounded-xl border border-gray-200 overflow-hidden">
+          {/* Active / stopping state — just show the stepper */}
           {(isProcessing || stopping) && (
-            <LiveAnalysisProgress
-              status={project.status}
-              totalFound={totalFound}
-              analyzed={fullText}
-              maxPapers={project.maxPapers}
-              stopping={stopping}
-            />
+            <div className="p-4">
+              <LiveAnalysisProgress
+                status={project.status}
+                totalFound={totalFound}
+                analyzed={fullText}
+                maxPapers={project.maxPapers}
+                stopping={stopping}
+              />
+            </div>
           )}
 
-          {project.status === "FAILED" && project.errorMessage && (
-            <p className="text-sm text-red-600 mt-2">{project.errorMessage}</p>
+          {/* Completed */}
+          {isActuallyComplete && (
+            <div className="p-4 flex items-center gap-3 bg-green-50 border-b border-green-100">
+              <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-green-800">Analysis complete</p>
+                <p className="text-xs text-green-600">{fullText} of {project.maxPapers} papers fully analyzed</p>
+              </div>
+            </div>
           )}
-          {project.status === "STOPPED" && (
-            <p className="text-sm text-orange-600 mt-2">Review stopped early. Results above show papers analyzed so far.</p>
+
+          {/* Stopped — show resume */}
+          {project.status === "STOPPED" && !isProcessing && (
+            <div className="p-4 flex items-center justify-between gap-4 bg-orange-50">
+              <div className="flex items-center gap-3">
+                <OctagonX className="h-5 w-5 text-orange-500 shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-orange-800">Analysis stopped early</p>
+                  <p className="text-xs text-orange-600">{fullText} of {project.maxPapers} analyzed so far — resume to continue from here</p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                onClick={handleResume}
+                disabled={resuming}
+                className="gap-1 shrink-0 cursor-pointer bg-orange-500 hover:bg-orange-600 text-white border-0"
+              >
+                {resuming ? <Spinner size="sm" /> : <Play className="h-3.5 w-3.5" />}
+                {resuming ? "Resuming..." : "Resume"}
+              </Button>
+            </div>
+          )}
+
+          {/* Failed */}
+          {project.status === "FAILED" && (
+            <div className="p-4 flex items-start gap-3 bg-red-50">
+              <XCircle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-red-800">Analysis failed</p>
+                {project.errorMessage && (
+                  <p className="text-xs text-red-600 mt-0.5">{project.errorMessage}</p>
+                )}
+              </div>
+            </div>
           )}
         </div>
       </div>
