@@ -47,6 +47,11 @@ export interface ResolveOutput {
   };
 }
 
+export type ResolveResult =
+  | { kind: "pdf"; data: ResolvedPdfDownload }
+  | { kind: "abstract-only"; text: string; url: string }
+  | null;
+
 export interface ResolvedPdfDownload {
   buffer: Buffer;
   text: string;
@@ -59,6 +64,11 @@ interface Candidate {
   url: string;
   method: ResolveOutput["evidence"]["method"];
   selector: string;
+}
+
+interface HtmlExtractionResult {
+  candidates: Candidate[];
+  abstract: string | null;
 }
 
 function toAbsoluteUrl(href: string, baseUrl: string): string | null {
@@ -219,7 +229,7 @@ async function fetchOaPdfDownloaderCandidate(titleLinkUrl: string): Promise<Cand
   }
 }
 
-function extractCandidatesFromHtml(html: string, baseUrl: string): Candidate[] {
+function extractCandidatesAndMeta(html: string, baseUrl: string): HtmlExtractionResult {
   const $ = cheerio.load(html);
   const candidates: Candidate[] = [];
   const seen = new Set<string>();
@@ -245,11 +255,20 @@ function extractCandidatesFromHtml(html: string, baseUrl: string): Candidate[] {
     pushCandidate(match, "html_link", "script/pdf-regex");
   }
 
-  return candidates;
+  // Extract Abstract
+  let abstract = $('meta[name="citation_abstract"]').attr("content") ||
+                 $('meta[name="dc.description"]').attr("content") ||
+                 $('meta[property="og:description"]').attr("content") ||
+                 $('meta[name="description"]').attr("content") ||
+                 null;
+
+  if (abstract && abstract.length < 300) abstract = null;
+
+  return { candidates, abstract };
 }
 
-async function fetchHtmlCandidates(landingUrl: string): Promise<Candidate[]> {
-  if (!landingUrl) return [];
+async function fetchHtmlCandidates(landingUrl: string): Promise<HtmlExtractionResult> {
+  if (!landingUrl) return { candidates: [], abstract: null };
 
   try {
     const response = await client.get(landingUrl, {
@@ -258,10 +277,10 @@ async function fetchHtmlCandidates(landingUrl: string): Promise<Candidate[]> {
       validateStatus: (status) => status < 500,
     });
 
-    if (response.status >= 400 || typeof response.data !== "string") return [];
-    return extractCandidatesFromHtml(response.data, landingUrl);
+    if (response.status >= 400 || typeof response.data !== "string") return { candidates: [], abstract: null };
+    return extractCandidatesAndMeta(response.data, landingUrl);
   } catch {
-    return [];
+    return { candidates: [], abstract: null };
   }
 }
 
@@ -346,10 +365,13 @@ function dedupeCandidates(candidates: Candidate[]): Candidate[] {
 
 export async function resolveAndFetchPdf(
   paper: PaperInput & { directPdfUrl?: string }
-): Promise<ResolvedPdfDownload | null> {
+): Promise<ResolveResult> {
   const candidates: Candidate[] = [];
   const titleShort = paper.title.slice(0, 60);
   console.log(`[Resolver] "${titleShort}" | landing=${paper.landing_url || "(none)"} | doi=${paper.doi || "(none)"} | directPdf=${paper.directPdfUrl || "(none)"}`);
+
+  let fallbackAbstract: string | null = null;
+  let fallbackUrl: string | null = paper.landing_url || null;
 
   // 1. Direct PDF link surfaced by Google Scholar (highest priority)
   if (paper.directPdfUrl && looksLikePdf(paper.directPdfUrl)) {
@@ -370,7 +392,7 @@ export async function resolveAndFetchPdf(
     if (fromOaPdfDownloader) candidates.push(fromOaPdfDownloader);
   } else {
     // Phase 2 (or full resolve): OA PDF Downloader + all fallback sources
-    const [fromOaPdfDownloader, fromUnpaywall, fromOpenAlex, fromSemanticScholar, fromHtml] =
+    const [fromOaPdfDownloader, fromUnpaywall, fromOpenAlex, fromSemanticScholar, fromHtmlRes] =
       await Promise.all([
         paper.landing_url ? fetchOaPdfDownloaderCandidate(paper.landing_url) : Promise.resolve(null),
         fetchUnpaywallCandidate(paper.doi),
@@ -382,7 +404,12 @@ export async function resolveAndFetchPdf(
     if (fromUnpaywall) candidates.push(fromUnpaywall);
     if (fromOpenAlex) candidates.push(fromOpenAlex);
     if (fromSemanticScholar) candidates.push(fromSemanticScholar);
-    candidates.push(...fromHtml);
+    
+    candidates.push(...fromHtmlRes.candidates);
+    if (fromHtmlRes.abstract) {
+      fallbackAbstract = fromHtmlRes.abstract;
+      console.log(`[Resolver] found abstract on landing page (${fallbackAbstract.length} chars)`);
+    }
   }
 
   const uniqueCandidates = dedupeCandidates(candidates).slice(0, 15);
@@ -412,19 +439,25 @@ export async function resolveAndFetchPdf(
     const downloaded = await downloadPdf(candidate.url);
     if (downloaded) {
       console.log(`[Resolver]   ✓ downloaded ${downloaded.pageCount}p / ${downloaded.text.length} chars via ${candidate.selector}`);
-      return downloaded;
+      return { kind: "pdf", data: downloaded };
     }
     console.log(`[Resolver]   ✗ download failed or text too short: ${candidate.url.slice(0, 100)}`);
   }
+  
+  // If no PDF found, but we have a good abstract from the landing page, return abstract-only result
+  if (fallbackAbstract && fallbackAbstract.length > 500 && fallbackUrl) {
+    console.log(`[Resolver] "${titleShort2}" — No PDF, but checking abstract fallback (${fallbackAbstract.length} chars)`);
+    return { kind: "abstract-only", text: fallbackAbstract, url: fallbackUrl };
+  }
 
-  console.log(`[Resolver] "${titleShort2}" — NO PDF found`);
+  console.log(`[Resolver] "${titleShort2}" — NO PDF found (and abstract fallback empty/short)`);
   return null;
 }
 
 export async function resolvePdfUrl(paper: PaperInput): Promise<ResolveOutput> {
-  const downloaded = await resolveAndFetchPdf(paper);
+  const result = await resolveAndFetchPdf(paper);
 
-  if (!downloaded) {
+  if (!result || result.kind !== "pdf") {
     return {
       status: "NO_PUBLIC_PDF",
       pdf_url: null,
@@ -435,6 +468,7 @@ export async function resolvePdfUrl(paper: PaperInput): Promise<ResolveOutput> {
     };
   }
 
+  const downloaded = result.data;
   return {
     status: "DOWNLOADED",
     pdf_url: downloaded.pdfUrl,

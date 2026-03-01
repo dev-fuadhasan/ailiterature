@@ -230,7 +230,29 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
         skipFallbackApis,
       });
 
-      if (!resolved || resolved.text.trim().length < 1200) {
+      let textToAnalyze: string | null = null;
+      let isAbstractOnly = false;
+      let pdfBuffer: Buffer | null = null;
+      let pdfUrlResult: string | null = null;
+      let abstractHint: string | null = null;
+
+      if (resolved && resolved.kind === "pdf") {
+        if (resolved.data.text.trim().length >= 1000) {
+          textToAnalyze = resolved.data.text;
+          isAbstractOnly = false;
+          pdfBuffer = resolved.data.buffer;
+          pdfUrlResult = resolved.data.pdfUrl;
+          abstractHint = resolved.data.abstractHint;
+        }
+      } else if (resolved && resolved.kind === "abstract-only") {
+        // If we found a good abstract, use it!
+        textToAnalyze = resolved.text;
+        isAbstractOnly = true;
+        // Keep pdfUrlResult null or use landing page? Let's keep existing logic which might rely on null for "no PDF".
+        // Actually, we can store the landing page URL as the "source" link.
+      }
+
+      if (!textToAnalyze) {
         if (skipFallbackApis) {
           // Phase 1 failure: queue for Phase 2 retry with full fallback APIs
           failedDedupeKeys.add(dedupeKey);
@@ -251,7 +273,11 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
 
       await safeProjectUpdate(projectId, { status: "ANALYZING" });
 
-      const analysis: ExtractionResult | null = await analyzePaper(resolved.text, paper.title, false);
+      const analysis: ExtractionResult | null = await analyzePaper(textToAnalyze, paper.title, isAbstractOnly);
+      
+      // If full-text analysis failed but we ignored abstract fallbacks previously, maybe we should've tried?
+      // But analyzePaper handles retries.
+      
       if (!analysis) {
         if (skipFallbackApis) {
           failedDedupeKeys.add(dedupeKey);
@@ -267,21 +293,23 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
       }
 
       let s3Key: string | null = null;
-      try {
-        const key = `papers/${paper.doi ? slugifyDoi(paper.doi) : slugifyTitle(paper.title)}.pdf`;
-        await uploadBuffer(key, resolved.buffer, "application/pdf");
-        s3Key = key;
-      } catch (error) {
-        console.warn("[Worker] R2 upload skipped:", error instanceof Error ? error.message : String(error));
+      if (pdfBuffer) {
+        try {
+          const key = `papers/${paper.doi ? slugifyDoi(paper.doi) : slugifyTitle(paper.title)}.pdf`;
+          await uploadBuffer(key, pdfBuffer, "application/pdf");
+          s3Key = key;
+        } catch (error) {
+          console.warn("[Worker] R2 upload skipped:", error instanceof Error ? error.message : String(error));
+        }
       }
 
       await prisma.paper.update({
         where: { id: paper.id },
         data: {
-          isOpenAccess: true,
-          pdfUrl: resolved.pdfUrl,
+          isOpenAccess: !!pdfUrlResult,
+          pdfUrl: pdfUrlResult ?? paper.pdfUrl, // Keep existing if null
           s3Key: s3Key ?? paper.s3Key,
-          abstract: paper.abstract || resolved.abstractHint || null,
+          abstract: isAbstractOnly ? (textToAnalyze || paper.abstract) : (paper.abstract || abstractHint || null),
         },
       });
 
@@ -296,7 +324,7 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
           keywords: analysis.keywords,
           rawJson: analysis as object,
           model: "llama-3.3-70b-versatile",
-          isAbstractOnly: false,
+          isAbstractOnly: isAbstractOnly,
         },
         create: {
           paperId: paper.id,
@@ -308,7 +336,7 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
           keywords: analysis.keywords,
           rawJson: analysis as object,
           model: "llama-3.3-70b-versatile",
-          isAbstractOnly: false,
+          isAbstractOnly: isAbstractOnly,
         },
       });
 

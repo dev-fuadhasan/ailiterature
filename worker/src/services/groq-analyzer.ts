@@ -46,8 +46,8 @@ const STUDY_TYPES = [
 ] as const;
 
 const ExtractionSchema = z.object({
-  methodology : z.string().min(10),
-  findings    : z.string().min(10),
+  methodology : z.string().min(5),
+  findings    : z.string().min(5),
   limitations : z.string().min(5).default("Not specified."),
   futureWork  : z.string().min(5).default("Not specified."),
   studyType   : z.enum(STUDY_TYPES).catch("Empirical Study"),
@@ -155,7 +155,7 @@ function parseAndValidate(raw: string): ExtractionResult | null {
       return null;
     }
     // Quality gate: reject thin responses
-    if (result.data.methodology.length < 20 || result.data.findings.length < 20) return null;
+    if (result.data.methodology.length < 5 || result.data.findings.length < 5) return null;
     return result.data;
   } catch {
     return null;
