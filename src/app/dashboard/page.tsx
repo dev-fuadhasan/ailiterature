@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -7,7 +9,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { BookOpen, Clock, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 
 export default async function DashboardPage() {
-    const session = await getServerSession(authOptions);
+    let session;
+    try {
+        session = await getServerSession(authOptions);
+    } catch {
+        redirect("/api/auth/signin");
+    }
 
     if (!session || !session.user) {
         redirect("/api/auth/signin");
@@ -17,7 +24,7 @@ export default async function DashboardPage() {
         where: { userId: session.user.id },
         orderBy: { createdAt: "desc" },
         include: { _count: { select: { papers: true } } },
-    });
+    }).catch(() => []);
 
     const statusIcon = (status: string) => {
         if (status === "COMPLETED") return <CheckCircle2 className="w-4 h-4 text-emerald-500" />;

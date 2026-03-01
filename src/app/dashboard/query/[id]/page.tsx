@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -5,7 +7,12 @@ import { redirect } from "next/navigation";
 import { QueryDashboardClient } from "@/app/dashboard/query/[id]/client";
 
 export default async function QueryDashboard({ params }: { params: Promise<{ id: string }> }) {
-    const session = await getServerSession(authOptions);
+    let session;
+    try {
+        session = await getServerSession(authOptions);
+    } catch {
+        redirect("/api/auth/signin");
+    }
 
     if (!session || !session.user) {
         redirect("/api/auth/signin");
