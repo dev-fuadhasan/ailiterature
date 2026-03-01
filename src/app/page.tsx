@@ -46,7 +46,7 @@ export default async function LandingPage() {
       </nav>
 
       {/* Hero */}
-      <section className="relative pt-32 pb-20 md:pt-40 md:pb-28 overflow-hidden">
+      <section className="relative pt-24 pb-16 md:pt-32 md:pb-20 overflow-hidden">
         {/* Sleek background decoration */}
         <div className="absolute inset-0 -z-10 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
         <div className="absolute top-0 inset-x-0 flex justify-center -z-10 pointer-events-none opacity-50">
@@ -54,36 +54,36 @@ export default async function LandingPage() {
         </div>
 
         <div className="max-w-7xl mx-auto px-6">
-          <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
+          <div className="flex flex-col lg:flex-row items-center gap-10 lg:gap-16">
             
             {/* Left Column: Copy & CTA */}
-            <div className="flex-1 text-center lg:text-left pt-6">
+            <div className="flex-1 text-center lg:text-left pt-2 md:pt-6">
               <Badge variant="secondary" className="mb-6 text-blue-700 bg-blue-50/80 hover:bg-blue-100 border border-blue-200/60 rounded-full px-4 py-1.5 shadow-sm transition-colors cursor-default backdrop-blur-sm">
                 <Sparkles className="h-3.5 w-3.5 mr-2" /> Elevate your research
               </Badge>
               <h1 className="text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight text-gray-900 mb-6 leading-[1.1]">
                 AI-powered <span className="block mt-1 text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">literature reviews.</span>
               </h1>
-              <p className="text-lg text-gray-500 mb-8 leading-relaxed max-w-xl mx-auto lg:mx-0">
+              <p className="text-base md:text-lg text-gray-500 mb-8 leading-relaxed max-w-xl mx-auto lg:mx-0">
                 ResearchRoom AI automates your literature review process. Enter your research topic to instantly find, download, and extract key insights from millions of academic research papers into a structured, exportable table.
               </p>
               
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
                 {isSignedIn ? (
-                  <Link href="/dashboard">
-                    <Button size="lg" className="rounded-full h-12 px-8 text-base shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 transition-all gap-2">
+                  <Link href="/dashboard" className="w-full sm:w-auto">
+                    <Button size="lg" className="w-full sm:w-auto rounded-full h-12 px-8 text-base shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 transition-all gap-2">
                       Go to Dashboard <ArrowRight className="h-4 w-4" />
                     </Button>
                   </Link>
                 ) : (
                   <>
-                    <Link href="/login">
-                      <Button size="lg" className="rounded-full h-12 px-8 text-base shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 transition-all gap-2">
+                    <Link href="/login" className="w-full sm:w-auto">
+                      <Button size="lg" className="w-full sm:w-auto rounded-full h-12 px-8 text-base shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 transition-all gap-2">
                         Start Your Review <ArrowRight className="h-4 w-4" />
                       </Button>
                     </Link>
-                    <Link href="/#how-it-works">
-                      <Button size="lg" variant="outline" className="rounded-full h-12 px-8 text-base border-gray-200 bg-white/50 backdrop-blur-sm hover:bg-white hover:border-gray-300 transition-all">
+                    <Link href="/#how-it-works" className="w-full sm:w-auto">
+                      <Button size="lg" variant="outline" className="w-full sm:w-auto rounded-full h-12 px-8 text-base border-gray-200 bg-white/50 backdrop-blur-sm hover:bg-white hover:border-gray-300 transition-all">
                         See How It Works
                       </Button>
                     </Link>
@@ -93,45 +93,48 @@ export default async function LandingPage() {
             </div>
 
             {/* Right Column: Product Screenshots */}
-            <div className="flex-[1.2] lg:w-full relative perspective-[2000px] mt-8 lg:mt-0">
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] bg-blue-500/10 blur-[100px] rounded-full pointer-events-none"></div>
+            {/* The user requested clear visibility. Now we stack them beautifully on mobile and stagger them cleanly on desktop without obscuring important parts. */}
+            <div className="flex-[1.2] w-full relative mt-12 lg:mt-0">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] h-[90%] bg-blue-500/10 blur-[100px] rounded-full pointer-events-none"></div>
               
-              {/* Main Background Screenshot (App View) */}
-              <div className="relative rounded-2xl border border-gray-200/60 bg-white/40 backdrop-blur-lg shadow-2xl xl:w-[95%] w-full overflow-hidden ml-auto transform transition-transform duration-700 hover:-translate-y-1 hover:shadow-3xl ring-1 ring-gray-900/5">
-                <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100/60 bg-white/80 backdrop-blur-md">
-                  <div className="w-2.5 h-2.5 rounded-full bg-red-400 border border-red-500/20"></div>
-                  <div className="w-2.5 h-2.5 rounded-full bg-amber-400 border border-amber-500/20"></div>
-                  <div className="w-2.5 h-2.5 rounded-full bg-green-400 border border-green-500/20"></div>
+              <div className="relative w-full max-w-2xl mx-auto lg:max-w-none">
+                {/* Main Background Screenshot (App View) */}
+                <div className="relative rounded-xl md:rounded-2xl border border-gray-200/60 bg-white/40 backdrop-blur-lg shadow-2xl w-[90%] md:w-[85%] lg:w-[90%] overflow-hidden ml-auto transform transition-transform duration-700 hover:-translate-y-1 hover:shadow-3xl ring-1 ring-gray-900/5">
+                  <div className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 md:py-3 border-b border-gray-100/60 bg-white/80 backdrop-blur-md">
+                    <div className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full bg-red-400 border border-red-500/20"></div>
+                    <div className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full bg-amber-400 border border-amber-500/20"></div>
+                    <div className="w-2 h-2 md:w-2.5 md:h-2.5 rounded-full bg-green-400 border border-green-500/20"></div>
+                  </div>
+                  <Image 
+                    src="/img1.png"
+                    alt="Literature Review Dashboard"
+                    width={1600}
+                    height={900}
+                    quality={100}
+                    className="w-full h-auto object-cover"
+                    priority
+                    unoptimized={true}
+                  />
                 </div>
-                <Image 
-                  src="/img1.png"
-                  alt="Literature Review Dashboard"
-                  width={1600}
-                  height={900}
-                  quality={100}
-                  className="w-full h-auto object-cover"
-                  priority
-                  unoptimized={true}
-                />
-              </div>
 
-              {/* Overlapping Focus Screenshot (Details View) */}
-              <div className="absolute -bottom-10 -left-6 md:-left-12 lg:-left-16 rounded-2xl border border-white/80 bg-white/95 backdrop-blur-xl shadow-2xl overflow-hidden w-[65%] sm:w-[55%] z-10 transition-all duration-500 hover:-translate-y-2 hover:scale-[1.02] hover:shadow-blue-900/20 ring-1 ring-gray-900/10 hidden sm:block">
-                <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-100/80 bg-gray-50/80">
-                  <div className="w-2 h-2 rounded-full bg-gray-300"></div>
-                  <div className="w-2 h-2 rounded-full bg-gray-300"></div>
-                  <div className="w-2 h-2 rounded-full bg-gray-300"></div>
+                {/* Overlapping Focus Screenshot (Details View) */}
+                <div className="absolute -bottom-6 -left-2 md:-bottom-10 md:left-0 lg:-bottom-12 lg:-left-8 rounded-xl md:rounded-2xl border border-white/80 bg-white/95 backdrop-blur-xl shadow-2xl overflow-hidden w-[75%] md:w-[65%] lg:w-[60%] z-10 transition-all duration-500 hover:-translate-y-2 hover:scale-[1.02] hover:shadow-blue-900/20 ring-1 ring-gray-900/10">
+                  <div className="flex items-center gap-1.5 md:gap-2 px-2 md:px-3 py-1.5 md:py-2 border-b border-gray-100/80 bg-gray-50/80">
+                    <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-gray-300"></div>
+                    <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-gray-300"></div>
+                    <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-gray-300"></div>
+                  </div>
+                  <Image 
+                    src="/img2.png"
+                    alt="Literature Review Process Analysis"
+                    width={1200}
+                    height={800}
+                    quality={100}
+                    className="w-full h-auto object-cover"
+                    priority
+                    unoptimized={true}
+                  />
                 </div>
-                <Image 
-                  src="/img2.png"
-                  alt="Literature Review Process Analysis"
-                  width={1200}
-                  height={800}
-                  quality={100}
-                  className="w-full h-auto object-cover"
-                  priority
-                  unoptimized={true}
-                />
               </div>
             </div>
             
