@@ -24,7 +24,8 @@ export async function POST(
     return NextResponse.json({ error: "Project is not stopped" }, { status: 400 });
   }
 
-  // Reset project to PENDING so the worker can pick it back up
+  // Reset project to PENDING — clear jobId so the worker fallback can pick it up
+  // if the BullMQ queue is unavailable in the web runtime.
   const updated = await prisma.project.update({
     where: { id },
     data: {
@@ -33,28 +34,34 @@ export async function POST(
       errorMessage: null,
       processedPapers: 0,
       failedPapers: 0,
+      jobId: null,           // ← critical: lets the fallback poller find this project
     },
   });
 
-  // Re-queue the job
+  // Try to re-queue via BullMQ (may not be available in all environments)
   const queue = getResearchQueue();
   if (queue) {
-    const jobId = await queue.add(
-      "research",
-      {
-        projectId: id,
-        userId: user.id,
-        topic: project.topic,
-        yearFrom: project.yearFrom,
-        yearTo: project.yearTo,
-        maxPapers: project.maxPapers,
-      },
-      { jobId: `${id}-resume-${Date.now()}` }
-    );
-    await prisma.project.update({
-      where: { id },
-      data: { jobId: jobId.id },
-    });
+    try {
+      const job = await queue.add(
+        "research",
+        {
+          projectId: id,
+          userId: user.id,
+          topic: project.topic,
+          yearFrom: project.yearFrom,
+          yearTo: project.yearTo,
+          maxPapers: project.maxPapers,
+        },
+        { jobId: `${id}-resume-${Date.now()}` }
+      );
+      await prisma.project.update({
+        where: { id },
+        data: { jobId: job.id },
+      });
+    } catch (queueErr) {
+      // Queue add failed — leave jobId as null so the fallback poller picks it up
+      console.error("[Resume] Queue add failed, fallback will handle:", queueErr);
+    }
   }
 
   return NextResponse.json({ success: true, status: updated.status });

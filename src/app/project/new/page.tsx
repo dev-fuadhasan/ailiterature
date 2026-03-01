@@ -20,7 +20,7 @@ export default function NewProjectPage() {
     topic: "",
     yearFrom: String(currentYear - 5),
     yearTo: String(currentYear),
-    maxPapers: "25",
+    maxPapers: "20",
   });
 
   function handleChange(field: string, value: string) {
@@ -157,22 +157,19 @@ export default function NewProjectPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="25" className="text-gray-900">
-                <span className="font-medium">25 papers</span>
-                <span className="ml-2 text-gray-500 text-xs">Fast · ~3 min</span>
-              </SelectItem>
-              <SelectItem value="50" className="text-gray-900">
-                <span className="font-medium">50 papers</span>
-                <span className="ml-2 text-gray-500 text-xs">~5 min</span>
-              </SelectItem>
-              <SelectItem value="100" className="text-gray-900">
-                <span className="font-medium">100 papers</span>
-                <span className="ml-2 text-gray-500 text-xs">~10 min</span>
-              </SelectItem>
-              <SelectItem value="200" className="text-gray-900">
-                <span className="font-medium">200 papers</span>
-                <span className="ml-2 text-gray-500 text-xs">~20 min</span>
-              </SelectItem>
+              {[
+                { value: "20",  label: "20 papers",  time: "~10 min" },
+                { value: "30",  label: "30 papers",  time: "~15 min" },
+                { value: "50",  label: "50 papers",  time: "~25 min" },
+                { value: "60",  label: "60 papers",  time: "~30 min" },
+                { value: "80",  label: "80 papers",  time: "~40 min" },
+                { value: "100", label: "100 papers", time: "~40+ min" },
+              ].map(({ value, label, time }) => (
+                <SelectItem key={value} value={value} className="text-gray-900">
+                  <span className="font-medium">{label}</span>
+                  <span className="ml-2 text-gray-400 text-xs">{time}</span>
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <p className="text-xs text-gray-500">
