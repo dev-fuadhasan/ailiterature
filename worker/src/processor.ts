@@ -366,17 +366,28 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
 
       // ── Phase 2: fallback APIs (Unpaywall, OpenAlex, Semantic Scholar, HTML) ──
       // Runs whenever Phase 1 did not fulfill the requested paper count.
-      // Retries Phase 1 failures AND processes any candidate not yet attempted.
+      // Retries Phase 1 failures AND processes high-priority fresh candidates in PARALLEL.
       if (analyzedCount < maxPapers && !shouldStop(projectId)) {
+        const deficit = maxPapers - analyzedCount;
+        // Smart limit: try up to 3x the deficit to avoid processing hundreds of slow fallback candidates
+        const maxPhase2Attempts = Math.min(deficit * 3, 60);
+        
         console.log(
-          `[Worker] Phase 2 — ${failedDedupeKeys.size} Phase-1 failures + fresh candidates ` +
-          `(${analyzedCount}/${maxPapers} analyzed so far)`
+          `[Worker] Phase 2 — ${failedDedupeKeys.size} failures + fresh candidates ` +
+          `(need ${deficit} more, will try up to ${maxPhase2Attempts} candidates in parallel)`
         );
         
+        const phase2Limit = createLimit(CONCURRENCY);
+        const phase2Promises: Promise<void>[] = [];
+        let attempted = 0;
+        
         for (const candidate of ranked) {
-          if (analyzedCount >= maxPapers || shouldStop(projectId)) break;
-          await processCandidate(candidate, false);
+          if (analyzedCount >= maxPapers || shouldStop(projectId) || attempted >= maxPhase2Attempts) break;
+          attempted++;
+          phase2Promises.push(phase2Limit(() => processCandidate(candidate, false)));
         }
+        
+        await Promise.all(phase2Promises);
       } else if (analyzedCount >= maxPapers) {
         console.log(`[Worker] Phase 1 target met (${analyzedCount}/${maxPapers}) — skipping fallback APIs`);
       }
