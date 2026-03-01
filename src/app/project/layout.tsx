@@ -3,6 +3,16 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { LayoutDashboard, PlusCircle } from "lucide-react";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Project",
+  description: "View and manage your literature review project details.",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export default async function ProjectLayout({
   children,

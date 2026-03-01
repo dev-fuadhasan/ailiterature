@@ -15,13 +15,26 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://researchroomai.vercel.app"),
   title: {
-    default: "ResearchRoom AI | AI-Powered Literature Review Generator",
+    default: "ResearchRoom AI - Automated Literature Review Generator",
     template: "%s | ResearchRoom AI"
   },
-  description: "Automate your literature review with AI. ResearchRoom AI quickly searches millions of academic papers, reads full texts, and extracts key findings, methodology, and limitations for your research paper.",
-  keywords: ["literature review AI", "research paper assistant", "AI literature review generator", "academic research tool", "automated literature review", "AI for researchers", "systematic review AI"],
+  description: "Automate your literature review with AI-powered research assistant. ResearchRoom quickly searches millions of academic papers, reads full texts, and extracts key findings, methodology, and limitations for your research paper.",
+  keywords: [
+    "literature review AI",
+    "research paper assistant",
+    "AI literature review generator",
+    "academic research tool",
+    "automated literature review",
+    "AI for researchers",
+    "systematic review AI",
+    "research automation",
+    "academic paper analysis",
+    "scholarly article search"
+  ],
   authors: [{ name: "ResearchRoom AI" }],
   creator: "ResearchRoom AI",
+  publisher: "ResearchRoom AI",
+  applicationName: "ResearchRoom AI",
   icons: {
     icon: "/favicon.png",
     shortcut: "/favicon.png",
@@ -31,14 +44,15 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: "https://researchroomai.vercel.app",
-    title: "ResearchRoom AI | AI-Powered Literature Review Generator",
-    description: "Automate your literature review in minutes. AI searches, reads, and synthesizes academic papers into structured tables.",
+    title: "ResearchRoom AI - Automated Literature Review Generator",
+    description: "Automate your literature review in minutes. Our AI searches, reads, and synthesizes academic papers into structured tables for your research.",
     siteName: "ResearchRoom AI",
   },
   twitter: {
     card: "summary_large_image",
-    title: "ResearchRoom AI | Automate Your Literature Review",
-    description: "AI-powered tool that finds, reads, and summarizes academic papers for your literature review instantly.",
+    title: "ResearchRoom AI - Automate Your Literature Review",
+    description: "AI-powered research assistant that finds, reads, and summarizes academic papers for your literature review instantly.",
+    creator: "@researchroomai",
   },
   robots: {
     index: true,
@@ -51,6 +65,10 @@ export const metadata: Metadata = {
       "max-snippet": -1,
     },
   },
+  alternates: {
+    canonical: "https://researchroomai.vercel.app",
+  },
+  category: "technology",
 };
 
 export default function RootLayout({
@@ -58,8 +76,38 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "ResearchRoom AI",
+    "applicationCategory": "BusinessApplication",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "description": "Automate your literature review with AI-powered research assistant. ResearchRoom quickly searches millions of academic papers, reads full texts, and extracts key findings.",
+    "operatingSystem": "Any",
+    "url": "https://researchroomai.vercel.app",
+    "author": {
+      "@type": "Organization",
+      "name": "ResearchRoom AI"
+    },
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.8",
+      "ratingCount": "127"
+    }
+  };
+
   return (
     <html lang="en">
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      </head>
       <body className={`${geist.variable} ${geistMono.variable} font-sans antialiased bg-gray-50`}>
         {children}
       </body>

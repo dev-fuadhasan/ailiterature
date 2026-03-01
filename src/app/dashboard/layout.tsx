@@ -4,6 +4,16 @@ import Link from "next/link";
 import Image from "next/image";
 import { LayoutDashboard, PlusCircle, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Dashboard",
+  description: "Manage your research projects and literature reviews in ResearchRoom AI dashboard.",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export default async function DashboardLayout({
   children,
