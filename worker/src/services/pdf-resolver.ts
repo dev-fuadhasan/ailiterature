@@ -200,10 +200,12 @@ async function fetchOaPdfDownloaderCandidate(titleLinkUrl: string): Promise<Cand
       return null;
     }
 
-    console.log(
-      `[OAPDFDownloader] ✓ Found PDF for ${titleLinkUrl} → ${pdfUrl}` +
-        (response.data.requiresBrowser ? " (requiresBrowser)" : "")
-    );
+    if (response.data.requiresBrowser) {
+      console.log(`[OAPDFDownloader] requiresBrowser=true for ${titleLinkUrl} — skipping (browser-gated URL)`);
+      return null;
+    }
+
+    console.log(`[OAPDFDownloader] ✓ Found PDF for ${titleLinkUrl} → ${pdfUrl}`);
 
     return {
       url: pdfUrl,
@@ -296,7 +298,10 @@ async function downloadPdf(url: string): Promise<ResolvedPdfDownload | null> {
   try {
     const response = await client.get(url, {
       responseType: "arraybuffer",
-      headers: { Accept: "application/pdf,*/*" },
+      headers: {
+        Accept: "application/pdf,application/octet-stream,*/*;q=0.8",
+        Referer: "https://scholar.google.com/",
+      },
       maxContentLength: MAX_PDF_BYTES,
       timeout: 90_000,
       validateStatus: (status) => status < 500,
