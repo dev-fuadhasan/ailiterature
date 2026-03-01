@@ -67,10 +67,10 @@ export default async function LandingPage() {
             <Sparkles className="h-3.5 w-3.5 mr-2" /> Elevate your research
           </Badge>
           <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-gray-900 mb-8 max-w-4xl mx-auto leading-[1.1]">
-            Literature reviews on <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">autopilot.</span>
+            AI-powered <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">literature reviews.</span>
           </h1>
           <p className="text-lg md:text-xl text-gray-500 max-w-2xl mx-auto mb-10 leading-relaxed">
-            Enter your research topic and let our proprietary AI seamlessly source, download, and extract key insights from hundreds of academic papers into a structured, exportable table.
+            ResearchRoom AI automates your literature review process. Enter your research topic to instantly find, download, and extract key insights from millions of academic research papers into a structured, exportable table.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             {isSignedIn ? (
@@ -102,10 +102,10 @@ export default async function LandingPage() {
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-3xl tracking-tight font-bold text-gray-900 mb-4">
-              Intelligence at every step
+              How our AI literature review generator works
             </h2>
             <p className="text-gray-500 max-w-2xl mx-auto text-lg">
-              From defining your topic to downloading the final CSV, our platform handles the heavy lifting of academic research without surfacing complex AI settings.
+              From defining your research topic to downloading the final CSV, our platform handles the heavy lifting of academic research without surfacing complex AI settings.
             </p>
           </div>
           
@@ -131,10 +131,10 @@ export default async function LandingPage() {
       <section className="py-24 max-w-6xl mx-auto px-6">
         <div className="text-center mb-16">
           <h2 className="text-3xl tracking-tight font-bold text-gray-900 mb-4">
-            Built for rigorous literature reviews
+            Built for rigorous academic literature reviews
           </h2>
           <p className="text-gray-500 max-w-2xl mx-auto text-lg">
-            A beautiful, sleek interface that hides the immense complexity of document parsing and analysis.
+            A beautiful, sleek interface that hides the immense complexity of document parsing, research scoping, and systematic review analysis.
           </p>
         </div>
         
