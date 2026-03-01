@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession, signIn } from "next-auth/react";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,11 +11,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 
 export function SearchForm() {
     const router = useRouter();
+    const { data: session, status } = useSession();
     const [topic, setTopic] = useState("");
     const [yearStart, setYearStart] = useState<string>("2020");
     const [yearEnd, setYearEnd] = useState<string>(new Date().getFullYear().toString());
     const [quartiles, setQuartiles] = useState<string[]>(["Q1", "Q2"]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const handleQuartileChange = (q: string, checked: boolean) => {
         if (checked) {
@@ -27,7 +30,15 @@ export function SearchForm() {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!topic) return;
+
+        // If not signed in, prompt Google sign-in now
+        if (!session) {
+            signIn("google");
+            return;
+        }
+
         setIsSubmitting(true);
+        setError(null);
 
         // Create query record via Next.js API
         try {
@@ -44,9 +55,12 @@ export function SearchForm() {
             const data = await res.json();
             if (data.id) {
                 router.push(`/dashboard/query/${data.id}`);
+            } else {
+                setError(data.error || "Something went wrong. Please try again.");
             }
-        } catch (error) {
-            console.error(error);
+        } catch (err) {
+            console.error(err);
+            setError("Network error. Please check your connection and try again.");
         } finally {
             setIsSubmitting(false);
         }
@@ -125,13 +139,22 @@ export function SearchForm() {
                     </div>
                 </form>
             </CardContent>
-            <CardFooter>
+            <CardFooter className="flex flex-col gap-3">
+                {error && (
+                    <p className="w-full text-sm text-red-600 dark:text-red-400 text-center bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-md px-3 py-2">
+                        {error}
+                    </p>
+                )}
                 <Button
                     onClick={handleSubmit}
-                    disabled={!topic || isSubmitting}
+                    disabled={!topic || isSubmitting || status === "loading"}
                     className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-semibold py-6 text-lg"
                 >
-                    {isSubmitting ? "Initiating Research..." : "Discover & Analyze Papers"}
+                    {isSubmitting
+                        ? "Initiating Research..."
+                        : !session
+                        ? "Sign in to Discover & Analyze Papers"
+                        : "Discover & Analyze Papers"}
                 </Button>
             </CardFooter>
         </Card>
