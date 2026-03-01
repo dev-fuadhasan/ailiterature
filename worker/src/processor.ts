@@ -80,7 +80,7 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
 
     const searchTarget = Math.min(Math.max(maxPapers * 4, 80), 400);
     const gsPapers = await searchGoogleScholar(topic, yearFrom, yearTo, searchTarget);
-    console.log(`[Worker] ScrapingDog results: ${gsPapers.length}`);
+    console.log(`[Worker] Retrieved ${gsPapers.length} candidate papers from Google Scholar`);
 
     {
       const sc = await prisma.project.findUnique({ where: { id: projectId }, select: { stopRequested: true } });
@@ -112,7 +112,6 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
     const oaRanked    = ranked.filter((p) => isKnownOAUrl(p.gsUrl));
     const nonOaRanked = ranked.filter((p) => !isKnownOAUrl(p.gsUrl));
     ranked.splice(0, ranked.length, ...oaRanked, ...nonOaRanked);
-    console.log(`[Worker] OA-domain papers: ${oaRanked.length} (sent first) | non-OA: ${nonOaRanked.length}`);
 
     await safeProjectUpdate(projectId, { status: "DOWNLOADING", totalPapers: maxPapers });
 
@@ -350,37 +349,30 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
     }
 
     try {
-      const limit = createLimit(CONCURRENCY);
-
       // ── Phase 1: OA PDF Downloader + direct GS PDF link only ──────────────────
-      // For each candidate, use the article's title_link (gsUrl) with the OA PDF
-      // Downloader API (https://oa-pdf-downloader.vercel.app/api/find-pdf) as the
-      // primary PDF resolution method. No Unpaywall / OpenAlex / Semantic Scholar
-      // calls are made in this phase — keeping credit usage minimal.
-      console.log(`[Worker] Phase 1 — OA PDF Downloader only (${ranked.length} candidates, target ${maxPapers})`);
-      const phase1Tasks = ranked.map((candidate) =>
-        limit(async () => {
-          if (analyzedCount >= maxPapers || shouldStop(projectId)) return;
-          await processCandidate(candidate, true);
-        })
-      );
-      await Promise.allSettled(phase1Tasks);
+      // Process papers ONE BY ONE sequentially. Each paper is sent to OA PDF
+      // Downloader, downloaded, analyzed, and the result is shown immediately
+      // before moving to the next paper.
+      console.log(`[Worker] Phase 1 — Processing papers one-by-one (target ${maxPapers})`);
+      
+      for (const candidate of ranked) {
+        if (analyzedCount >= maxPapers || shouldStop(projectId)) break;
+        await processCandidate(candidate, true);
+      }
 
       // ── Phase 2: fallback APIs (Unpaywall, OpenAlex, Semantic Scholar, HTML) ──
       // Only runs when Phase 1 did not fulfill the requested paper count.
+      // Process sequentially, one paper at a time.
       if (analyzedCount < maxPapers && !shouldStop(projectId) && failedDedupeKeys.size > 0) {
         console.log(
-          `[Worker] Phase 2 — fallback APIs for ${failedDedupeKeys.size} missed papers ` +
+          `[Worker] Phase 2 — Retrying ${failedDedupeKeys.size} papers with fallback APIs ` +
           `(${analyzedCount}/${maxPapers} analyzed so far)`
         );
-        const limit2 = createLimit(CONCURRENCY);
-        const phase2Tasks = ranked.map((candidate) =>
-          limit2(async () => {
-            if (analyzedCount >= maxPapers || shouldStop(projectId)) return;
-            await processCandidate(candidate, false);
-          })
-        );
-        await Promise.allSettled(phase2Tasks);
+        
+        for (const candidate of ranked) {
+          if (analyzedCount >= maxPapers || shouldStop(projectId)) break;
+          await processCandidate(candidate, false);
+        }
       } else if (analyzedCount >= maxPapers) {
         console.log(`[Worker] Phase 1 target met (${analyzedCount}/${maxPapers}) — skipping fallback APIs`);
       }
