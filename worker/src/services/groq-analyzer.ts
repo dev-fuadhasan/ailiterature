@@ -12,7 +12,7 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 // so only ONE request runs at a time. PDF downloading/resolving stays fully
 // parallel — only the cheap ~1-2 second LLM call is serialised.
 // A minimum inter-call gap (MIN_GROQ_GAP_MS) prevents back-to-back bursts.
-const MIN_GROQ_GAP_MS = 4000;
+const MIN_GROQ_GAP_MS = 10000;
 let _groqChain: Promise<unknown> = Promise.resolve();
 
 function enqueueGroqCall<T>(fn: () => Promise<T>): Promise<T> {
@@ -22,8 +22,8 @@ function enqueueGroqCall<T>(fn: () => Promise<T>): Promise<T> {
   );
   // Chain includes the inter-call gap so subsequent calls wait at least MIN_GROQ_GAP_MS
   _groqChain = next.then(
-    () => new Promise<void>((r) => setTimeout(r, MIN_GROQ_GAP_MS)),
-    () => new Promise<void>((r) => setTimeout(r, MIN_GROQ_GAP_MS)),
+    () => new Promise<void>((r) => setTimeout(r, MIN_GROQ_GAP_MS + Math.random() * 2000)),
+    () => new Promise<void>((r) => setTimeout(r, MIN_GROQ_GAP_MS + Math.random() * 2000)),
   );
   return next;
 }
@@ -139,8 +139,8 @@ Use "Not specified." for fields that cannot be determined from the available tex
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 /** Exponential backoff with full jitter: base * 2^attempt + random(0, base) */
-function backoffMs(attempt: number, base = 5000): number {
-  return Math.min(base * 2 ** attempt + Math.random() * base, 60_000);
+function backoffMs(attempt: number, base = 10000): number {
+  return Math.min(base * 2 ** attempt + Math.random() * base, 90_000);
 }
 
 // ─── Output validator ──────────────────────────────────────────────────────
@@ -181,7 +181,7 @@ async function _analyzePaperInner(
     const budget   = abstractOnly ? Math.min(maxChars, 6_000) : maxChars;
     const trimmed  = sectionAwareTrim(paperText, budget);
     const prompt   = buildPrompt(trimmed, abstractOnly);
-    const MAX_RETRY = 2;
+    const MAX_RETRY = 3;
 
     for (let attempt = 0; attempt <= MAX_RETRY; attempt++) {
       try {
