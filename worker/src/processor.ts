@@ -52,7 +52,11 @@ interface RankedCandidate extends GoogleScholarPaper {
 }
 
 export async function processResearchJob(job: Job<ResearchJobData>): Promise<void> {
-  const { projectId, topic, yearFrom, yearTo, maxPapers } = job.data;
+  await processResearchData(job.data);
+}
+
+export async function processResearchData(data: ResearchJobData): Promise<void> {
+  const { projectId, topic, yearFrom, yearTo, maxPapers } = data;
   console.log(`[Worker] Starting project ${projectId}: "${topic}" — target ${maxPapers} fully analyzed PDFs`);
 
   try {

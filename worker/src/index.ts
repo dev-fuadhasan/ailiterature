@@ -2,7 +2,8 @@ import "dotenv/config";
 import { Worker } from "bullmq";
 import { QUEUE_NAME, ResearchJobData } from "./lib/queue";
 import { PDF_RESOLVER_QUEUE } from "./lib/pdf-queue";
-import { processResearchJob } from "./processor";
+import { processResearchData, processResearchJob } from "./processor";
+import prisma from "./lib/prisma";
 import { resolvePdfUrl } from "./services/pdf-resolver";
 import type { PaperInput } from "./services/pdf-resolver";
 
@@ -75,6 +76,38 @@ pdfWorker.on("failed", (job, err) => {
 pdfWorker.on("error", (err) => {
   console.error("[PDFWorker] error:", err);
 });
+
+let fallbackRunning = false;
+setInterval(async () => {
+  if (fallbackRunning) return;
+  fallbackRunning = true;
+  try {
+    const project = await prisma.project.findFirst({
+      where: {
+        status: "PENDING",
+        stopRequested: false,
+        jobId: null,
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    if (!project) return;
+
+    console.log(`[Fallback] Processing pending project without queue job: ${project.id}`);
+    await processResearchData({
+      projectId: project.id,
+      userId: project.userId,
+      topic: project.topic,
+      yearFrom: project.yearFrom,
+      yearTo: project.yearTo,
+      maxPapers: project.maxPapers,
+    });
+  } catch (error) {
+    console.error("[Fallback] Error:", error instanceof Error ? error.message : String(error));
+  } finally {
+    fallbackRunning = false;
+  }
+}, 15000);
 
 // ── Graceful shutdown ─────────────────────────────────────────────────────────
 
