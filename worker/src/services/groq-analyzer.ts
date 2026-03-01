@@ -3,6 +3,31 @@ import { z } from "zod";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
+// ─── Sequential Groq request queue ─────────────────────────────────────────
+// Problem: with CONCURRENCY=4 in the worker, all 4 analysis tasks fire Groq
+// requests simultaneously, exhausting the TPM window of every model within
+// seconds and causing cascading "All models exhausted" failures.
+//
+// Solution: serialise ALL Groq chat calls through a module-level promise chain
+// so only ONE request runs at a time. PDF downloading/resolving stays fully
+// parallel — only the cheap ~1-2 second LLM call is serialised.
+// A minimum inter-call gap (MIN_GROQ_GAP_MS) prevents back-to-back bursts.
+const MIN_GROQ_GAP_MS = 800;
+let _groqChain: Promise<unknown> = Promise.resolve();
+
+function enqueueGroqCall<T>(fn: () => Promise<T>): Promise<T> {
+  const next = _groqChain.then(
+    () => fn(),
+    () => fn(), // always run even if previous call errored
+  );
+  // Chain includes the inter-call gap so subsequent calls wait at least MIN_GROQ_GAP_MS
+  _groqChain = next.then(
+    () => new Promise<void>((r) => setTimeout(r, MIN_GROQ_GAP_MS)),
+    () => new Promise<void>((r) => setTimeout(r, MIN_GROQ_GAP_MS)),
+  );
+  return next;
+}
+
 // ─── Model roster (ordered: quality → speed → fallback) ────────────────────
 // llama-3.3-70b-versatile : 131K ctx, 32K max-completion, 300K TPM — best quality
 // openai/gpt-oss-120b     : 131K ctx, 65K max-completion, 250K TPM — large fallback
@@ -144,6 +169,15 @@ export async function analyzePaper(
   title: string,
   abstractOnly = false,
 ): Promise<ExtractionResult | null> {
+  // All calls go through the sequential queue — prevents simultaneous TPM bursts
+  return enqueueGroqCall(() => _analyzePaperInner(paperText, title, abstractOnly));
+}
+
+async function _analyzePaperInner(
+  paperText: string,
+  title: string,
+  abstractOnly = false,
+): Promise<ExtractionResult | null> {
   for (const { id: model, maxChars } of MODELS) {
     const budget   = abstractOnly ? Math.min(maxChars, 6_000) : maxChars;
     const trimmed  = sectionAwareTrim(paperText, budget);
@@ -196,4 +230,4 @@ export async function analyzePaper(
 
   console.error(`[Groq] All models exhausted for "${title}"`);
   return null;
-}
+}  // end _analyzePaperInner

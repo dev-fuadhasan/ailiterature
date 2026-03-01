@@ -1,6 +1,7 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
 import pdfParse from "pdf-parse";
+import { isKnownOAUrl } from "./google-scholar";
 
 const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
@@ -384,10 +385,23 @@ export async function resolveAndFetchPdf(
   console.log(`[Resolver] "${titleShort2}" — ${uniqueCandidates.length} candidate(s): ${uniqueCandidates.map((c) => c.selector).join(", ") || "(none)"}`);
 
   for (const candidate of uniqueCandidates) {
-    const valid = await isValidPdfUrl(candidate.url);
-    if (!valid) {
-      console.log(`[Resolver]   ✗ not a valid PDF: ${candidate.url.slice(0, 100)}`);
-      continue;
+    // Skip HEAD/byte-sniff validation when:
+    //   - URL came from the OA PDF Downloader (it already verified the link)
+    //   - URL belongs to a known OA domain (publisher anti-hotlinking blocks Range requests
+    //     without a Referer, causing false negatives — the browser works fine because it
+    //     sends Referer automatically)
+    const trustedCandidate =
+      candidate.selector.startsWith("oa-pdf-downloader:") ||
+      isKnownOAUrl(candidate.url);
+
+    if (!trustedCandidate) {
+      const valid = await isValidPdfUrl(candidate.url);
+      if (!valid) {
+        console.log(`[Resolver]   ✗ not a valid PDF: ${candidate.url.slice(0, 100)}`);
+        continue;
+      }
+    } else {
+      console.log(`[Resolver]   → trusted OA URL, skipping validation: ${candidate.url.slice(0, 80)}`);
     }
 
     const downloaded = await downloadPdf(candidate.url);

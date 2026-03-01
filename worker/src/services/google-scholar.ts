@@ -255,22 +255,26 @@ export async function searchGoogleScholar(
     return [];
   }
 
-  // Build three complementary queries:
-  //   1. Full title (exact user input)
-  //   2. First half of words
-  //   3. Last half of words
-  // This casts a wider net on Google Scholar to surface papers that GS doesn't
-  // return for the full-length query (truncation biases, variant phrasings, etc.).
+  // Build up to three complementary queries:
+  //   1. Full title (exact user input)  — always
+  //   2. First half of words           — only when title has > 6 words
+  //   3. Last half of words            — only when title has > 6 words
+  //
+  // Short titles (≤ 6 words) are NOT split: fragments like "Healthcare in" or
+  // "education" produce irrelevant GS results (textbooks, unrelated domains)
+  // that pollute the candidate pool and waste OA downloader credits.
   const fullTitle = topic.trim();
   const words = fullTitle.split(/\s+/).filter(Boolean);
-  const mid = Math.ceil(words.length / 2);
-  const firstHalf = words.slice(0, mid).join(" ");
-  const lastHalf  = words.slice(mid).join(" ");
 
-  // Deduplicate queries in case the title is very short (≤ 2 words)
   const queries: string[] = [fullTitle];
-  if (firstHalf && firstHalf !== fullTitle) queries.push(firstHalf);
-  if (lastHalf  && lastHalf  !== fullTitle && lastHalf !== firstHalf) queries.push(lastHalf);
+
+  if (words.length > 6) {
+    const mid = Math.ceil(words.length / 2);
+    const firstHalf = words.slice(0, mid).join(" ");
+    const lastHalf  = words.slice(mid).join(" ");
+    if (firstHalf && firstHalf !== fullTitle) queries.push(firstHalf);
+    if (lastHalf  && lastHalf  !== fullTitle && lastHalf !== firstHalf) queries.push(lastHalf);
+  }
 
   console.log(`[GS] Search queries (${queries.length}): ${queries.map((q) => `"${q}"`).join(", ")}`);
 
