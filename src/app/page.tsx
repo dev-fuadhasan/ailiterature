@@ -138,7 +138,7 @@ export default async function LandingPage() {
           <div className="flex flex-col relative z-10 items-center w-full">
             
             {/* Primary Dashboard Image */}
-            <div className="w-full rounded-2xl md:rounded-[2rem] border border-gray-200/60 bg-white/40 backdrop-blur-lg shadow-2xl overflow-hidden ring-1 ring-gray-900/5 transform transition-all duration-700 hover:-translate-y-2 hover:shadow-3xl">
+            <div className="w-full rounded-2xl md:rounded-[2rem] border border-gray-200/60 bg-white/40 backdrop-blur-lg shadow-2xl overflow-hidden ring-1 ring-gray-900/5 transform transition-all duration-700 hover:-translate-y-2 hover:shadow-3xl relative z-10">
               <div className="flex items-center gap-1.5 md:gap-2 px-4 py-3 border-b border-gray-100/60 bg-white/80 backdrop-blur-md">
                 <div className="w-2.5 h-2.5 rounded-full bg-red-400 border border-red-500/20 shadow-sm"></div>
                 <div className="w-2.5 h-2.5 rounded-full bg-amber-400 border border-amber-500/20 shadow-sm"></div>
@@ -157,7 +157,7 @@ export default async function LandingPage() {
             </div>
 
             {/* Connecting Visual - Professional flow between the images */}
-            <div className="hidden md:flex flex-col items-center justify-center -mt-3 -mb-3 z-20">
+            <div className="hidden md:flex flex-col items-center justify-center -mt-3 -mb-3 z-0">
               <div className="w-1 h-14 bg-gradient-to-b from-blue-200 to-blue-500 shadow-sm"></div>
               <div className="w-10 h-10 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg border-4 border-white relative">
                  <ArrowDown className="w-5 h-5"/>
@@ -166,7 +166,7 @@ export default async function LandingPage() {
             </div>
 
             {/* Secondary Analysis Image - Mobile margin top, Desktop connected by line */}
-            <div className="w-full md:w-[85%] mt-8 md:mt-0 rounded-2xl md:rounded-[2rem] border border-gray-200/80 bg-white/95 backdrop-blur-xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] overflow-hidden ring-1 ring-gray-900/10 transform transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_35px_60px_-15px_rgba(0,0,0,0.3)]">
+            <div className="w-full md:w-[85%] mt-8 md:mt-0 rounded-2xl md:rounded-[2rem] border border-gray-200/80 bg-white/95 backdrop-blur-xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] overflow-hidden ring-1 ring-gray-900/10 transform transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_35px_60px_-15px_rgba(0,0,0,0.3)] relative z-10">
               <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100/80 bg-gray-50/80">
                 <div className="flex items-center gap-1.5 md:gap-2">
                   <div className="w-2.5 h-2.5 rounded-full bg-gray-300 shadow-sm"></div>
