@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/server";
@@ -93,6 +94,43 @@ export default async function LandingPage() {
                 </Link>
               </>
             )}
+          </div>
+
+          {/* Product Screenshots showcase */}
+          <div className="mt-20 md:mt-28 relative max-w-5xl mx-auto w-full">
+            {/* Main Background Screenshot (App View) */}
+            <div className="relative rounded-2xl border border-gray-200/50 bg-white/40 backdrop-blur-md shadow-2xl xl:w-[90%] w-full overflow-hidden mx-auto">
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100/50 bg-gray-50/50 backdrop-blur-sm">
+                <div className="w-3 h-3 rounded-full bg-red-400 border border-red-500/20 shadow-sm"></div>
+                <div className="w-3 h-3 rounded-full bg-amber-400 border border-amber-500/20 shadow-sm"></div>
+                <div className="w-3 h-3 rounded-full bg-green-400 border border-green-500/20 shadow-sm"></div>
+              </div>
+              <Image 
+                src="/img1.png"
+                alt="Literature Review Dashboard"
+                width={1600}
+                height={900}
+                className="w-full h-auto object-cover ring-1 ring-gray-900/5"
+                priority
+              />
+            </div>
+
+            {/* Overlapping Focus Screenshot (Details View) */}
+            <div className="absolute -bottom-10 -right-4 md:-bottom-16 md:-right-8 rounded-2xl border border-gray-200 bg-white/95 backdrop-blur-xl shadow-2xl overflow-hidden w-[75%] md:w-[65%] lg:w-[55%] z-10 transition-transform duration-500 hover:-translate-y-2 hover:shadow-3xl ring-1 ring-gray-900/10 hidden sm:block">
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100/50 bg-gray-50/50">
+                <div className="w-3 h-3 rounded-full bg-gray-300 shadow-sm"></div>
+                <div className="w-3 h-3 rounded-full bg-gray-300 shadow-sm"></div>
+                <div className="w-3 h-3 rounded-full bg-gray-300 shadow-sm"></div>
+              </div>
+              <Image 
+                src="/img2.png"
+                alt="Literature Review Process Analysis"
+                width={1200}
+                height={800}
+                className="w-full h-auto object-cover"
+                priority
+              />
+            </div>
           </div>
         </div>
       </section>
