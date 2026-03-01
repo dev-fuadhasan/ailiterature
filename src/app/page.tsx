@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { createClient } from "@/lib/supabase/server";
 import {
   BookOpen,
   Search,
@@ -11,9 +12,13 @@ import {
   CheckCircle,
   Zap,
   Globe,
+  LayoutDashboard,
 } from "lucide-react";
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const isSignedIn = !!user;
   return (
     <div className="min-h-screen bg-white">
       {/* Navbar */}
@@ -24,12 +29,22 @@ export default function LandingPage() {
             <span className="font-bold text-xl text-gray-900">LiteratureAI</span>
           </div>
           <div className="flex items-center gap-3">
-            <Link href="/login">
-              <Button variant="ghost">Sign In</Button>
-            </Link>
-            <Link href="/login">
-              <Button>Get Started Free</Button>
-            </Link>
+            {isSignedIn ? (
+              <Link href="/dashboard">
+                <Button className="gap-2">
+                  <LayoutDashboard className="h-4 w-4" /> Go to Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button variant="ghost">Sign In</Button>
+                </Link>
+                <Link href="/login">
+                  <Button>Get Started Free</Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -49,16 +64,26 @@ export default function LandingPage() {
           — ready to export as CSV.
         </p>
         <div className="flex items-center justify-center gap-4">
-          <Link href="/login">
-            <Button size="lg" className="gap-2 text-base px-8">
-              Start Your Review <ArrowRight className="h-5 w-5" />
-            </Button>
-          </Link>
-          <Link href="/login">
-            <Button size="lg" variant="outline" className="text-base px-8">
-              View Demo
-            </Button>
-          </Link>
+          {isSignedIn ? (
+            <Link href="/dashboard">
+              <Button size="lg" className="gap-2 text-base px-8">
+                Go to Dashboard <LayoutDashboard className="h-5 w-5" />
+              </Button>
+            </Link>
+          ) : (
+            <>
+              <Link href="/login">
+                <Button size="lg" className="gap-2 text-base px-8">
+                  Start Your Review <ArrowRight className="h-5 w-5" />
+                </Button>
+              </Link>
+              <Link href="/login">
+                <Button size="lg" variant="outline" className="text-base px-8">
+                  View Demo
+                </Button>
+              </Link>
+            </>
+          )}
         </div>
       </section>
 
@@ -117,11 +142,19 @@ export default function LandingPage() {
           <p className="text-blue-100 mb-8 text-lg">
             Join researchers who use LiteratureAI to save weeks of manual work.
           </p>
-          <Link href="/login">
-            <Button size="lg" variant="outline" className="text-blue-600 border-white hover:bg-white text-base px-10">
-              Get Started — It&apos;s Free
-            </Button>
-          </Link>
+          {isSignedIn ? (
+            <Link href="/dashboard">
+              <Button size="lg" variant="outline" className="text-blue-600 border-white hover:bg-white text-base px-10 gap-2">
+                <LayoutDashboard className="h-5 w-5" /> Go to Dashboard
+              </Button>
+            </Link>
+          ) : (
+            <Link href="/login">
+              <Button size="lg" variant="outline" className="text-blue-600 border-white hover:bg-white text-base px-10">
+                Get Started — It&apos;s Free
+              </Button>
+            </Link>
+          )}
         </div>
       </section>
 

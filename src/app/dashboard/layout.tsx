@@ -46,22 +46,28 @@ export default async function DashboardLayout({
 
         {/* User area */}
         <div className="p-4 border-t border-gray-100">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-              <span className="text-xs font-semibold text-blue-700">
-                {user.email?.charAt(0).toUpperCase()}
+          <div className="flex items-start gap-3 mb-3">
+            <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+              <span className="text-sm font-bold text-blue-700">
+                {(user.user_metadata?.full_name || user.user_metadata?.name || user.email || "?")
+                  .charAt(0)
+                  .toUpperCase()}
               </span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{user.email}</p>
-              <p className="text-xs text-gray-500">Free plan</p>
+              {(user.user_metadata?.full_name || user.user_metadata?.name) && (
+                <p className="text-sm font-semibold text-gray-900 truncate leading-tight">
+                  {user.user_metadata?.full_name || user.user_metadata?.name}
+                </p>
+              )}
+              <p className="text-xs text-gray-500 truncate leading-tight">{user.email}</p>
             </div>
           </div>
           <form action="/auth/signout" method="post">
             <Button
               variant="ghost"
               size="sm"
-              className="w-full justify-start gap-2 text-gray-600"
+              className="w-full justify-start gap-2 text-gray-600 hover:text-red-600 hover:bg-red-50"
               formAction={async () => {
                 "use server";
                 const supabase2 = await createClient();

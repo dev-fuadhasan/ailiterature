@@ -10,6 +10,7 @@ import {
   Download, RefreshCw, ExternalLink, BookOpen,
   ChevronDown, ChevronUp, FileText, AlertCircle,
   Microscope, Lightbulb, AlertTriangle, ArrowRight, Tag, StopCircle,
+  Search, HardDriveDownload, Brain, CheckCircle2, OctagonX,
 } from "lucide-react";
 
 interface Extraction {
@@ -60,6 +61,107 @@ const STATUS_LABELS: Record<string, string> = {
   FAILED: "Failed",
   STOPPED: "Stopped by user",
 };
+
+// Step-by-step animated progress indicator shown while analysis is running
+function LiveAnalysisProgress({
+  status,
+  totalFound,
+  analyzed,
+  maxPapers,
+  stopping,
+}: {
+  status: string;
+  totalFound: number;
+  analyzed: number;
+  maxPapers: number;
+  stopping: boolean;
+}) {
+  const [dot, setDot] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setDot((d) => (d + 1) % 4), 500);
+    return () => clearInterval(t);
+  }, []);
+  const dots = ".".repeat(dot);
+
+  if (stopping) {
+    return (
+      <div className="mt-3 flex items-center gap-3 px-4 py-3 bg-orange-50 border border-orange-200 rounded-xl">
+        <OctagonX className="h-5 w-5 text-orange-500 shrink-0 animate-pulse" />
+        <div>
+          <p className="text-sm font-semibold text-orange-700">Stopping analysis{dots}</p>
+          <p className="text-xs text-orange-500 mt-0.5">
+            Wrapping up current paper and saving results — this may take a few seconds.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const steps = [
+    {
+      key: "SEARCHING",
+      icon: Search,
+      label: "Searching databases",
+      detail: "Scanning Semantic Scholar, OpenAlex & arXiv for relevant papers",
+      active: status === "SEARCHING",
+      done: ["DOWNLOADING", "ANALYZING", "COMPLETED"].includes(status),
+    },
+    {
+      key: "DOWNLOADING",
+      icon: HardDriveDownload,
+      label: `Fetching PDFs (${totalFound} papers found)`,
+      detail: "Locating open-access full-text PDFs via Unpaywall & CORE",
+      active: status === "DOWNLOADING",
+      done: ["ANALYZING", "COMPLETED"].includes(status),
+    },
+    {
+      key: "ANALYZING",
+      icon: Brain,
+      label: `AI reading papers — ${analyzed} of ${maxPapers} complete`,
+      detail: "Groq AI is extracting methodology, findings & limitations from each paper",
+      active: status === "ANALYZING",
+      done: status === "COMPLETED",
+    },
+  ];
+
+  return (
+    <div className="mt-3 space-y-2">
+      {steps.map((step) => {
+        const Icon = step.icon;
+        return (
+          <div
+            key={step.key}
+            className={`flex items-start gap-3 px-4 py-3 rounded-xl border transition-colors ${
+              step.active
+                ? "bg-blue-50 border-blue-200"
+                : step.done
+                ? "bg-green-50 border-green-200 opacity-70"
+                : "bg-gray-50 border-gray-200 opacity-40"
+            }`}
+          >
+            <div className={`mt-0.5 shrink-0 ${step.active ? "text-blue-600" : step.done ? "text-green-600" : "text-gray-400"}`}>
+              {step.done ? (
+                <CheckCircle2 className="h-4 w-4" />
+              ) : step.active ? (
+                <Icon className="h-4 w-4 animate-pulse" />
+              ) : (
+                <Icon className="h-4 w-4" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className={`text-sm font-semibold ${step.active ? "text-blue-800" : step.done ? "text-green-800" : "text-gray-500"}`}>
+                {step.label}{step.active ? dots : ""}
+              </p>
+              {step.active && (
+                <p className="text-xs text-blue-600 mt-0.5">{step.detail}</p>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 const QUARTILE_COLORS: Record<string, string> = {
   Q1: "bg-emerald-100 text-emerald-800",
@@ -231,7 +333,12 @@ export default function ProjectPage() {
   useEffect(() => { fetchProject(); }, [fetchProject]);
 
   useEffect(() => {
-    if (!project || ["COMPLETED", "FAILED", "STOPPED"].includes(project.status)) return;
+    if (!project) return;
+    // Clear stopping indicator once the project actually reaches STOPPED/COMPLETED
+    if (["STOPPED", "COMPLETED", "FAILED"].includes(project.status)) {
+      setStopping(false);
+    }
+    if (["COMPLETED", "FAILED", "STOPPED"].includes(project.status)) return;
     const interval = setInterval(fetchProject, 4000);
     return () => clearInterval(interval);
   }, [project, fetchProject]);
@@ -240,10 +347,9 @@ export default function ProjectPage() {
     setStopping(true);
     try {
       await fetch(`/api/projects/${projectId}/stop`, { method: "POST" });
-      // Refresh after a moment to pick up stopping state
+      // Keep polling; stopping flag will clear once status flips to STOPPED
       setTimeout(fetchProject, 1500);
-    } catch { alert("Failed to send stop request."); }
-    finally { setStopping(false); }
+    } catch { alert("Failed to send stop request."); setStopping(false); }
   }
 
   async function handleExport() {
@@ -264,7 +370,10 @@ export default function ProjectPage() {
   if (loading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>;
   if (!project) return <div className="p-8 text-center"><p className="text-gray-500">Project not found.</p></div>;
 
-  const isProcessing = !["COMPLETED", "FAILED", "STOPPED"].includes(project.status);
+  const isTerminal = ["COMPLETED", "FAILED", "STOPPED"].includes(project.status);
+  // Only treat as fully complete when the backend says COMPLETED AND we hit the target count
+  const isActuallyComplete = project.status === "COMPLETED" && fullText >= project.maxPapers;
+  const isProcessing = !isTerminal || (!isActuallyComplete && project.status === "COMPLETED");
 
   const totalFound = project.papers.length;
   const fullText = project.papers.filter((p) => p.extractionStatus === "COMPLETED").length;
@@ -298,10 +407,10 @@ export default function ProjectPage() {
                 className="gap-1 cursor-pointer bg-red-600 hover:bg-red-700 text-white border-0"
               >
                 {stopping ? <Spinner size="sm" /> : <StopCircle className="h-3.5 w-3.5" />}
-                Stop
+                {stopping ? "Stopping..." : "Stop"}
               </Button>
             )}
-            {project.status === "COMPLETED" && (
+            {isActuallyComplete && (
               <Button size="sm" onClick={handleExport} disabled={exporting} className="gap-1 cursor-pointer">
                 {exporting ? <Spinner size="sm" /> : <Download className="h-3.5 w-3.5" />}
                 Export CSV
@@ -314,8 +423,14 @@ export default function ProjectPage() {
         <div className="mt-4 p-4 bg-white rounded-xl border border-gray-200">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              {isProcessing && <Spinner size="sm" />}
-              <span className="text-sm font-medium text-gray-700">{STATUS_LABELS[project.status] || project.status}</span>
+              {isProcessing && !stopping && <Spinner size="sm" />}
+              <span className="text-sm font-medium text-gray-700">
+                {stopping
+                  ? "Stopping analysis..."
+                  : isActuallyComplete
+                  ? "✅ Analysis complete"
+                  : STATUS_LABELS[project.status] || project.status}
+              </span>
             </div>
             {project.maxPapers > 0 && (
               <span className="text-xs text-gray-400">{fullText} of {project.maxPapers} analyzed ({progress}%)</span>
@@ -326,9 +441,23 @@ export default function ProjectPage() {
           {totalFound > 0 && (
             <div className="flex flex-wrap gap-2 text-xs">
               <span className="px-2.5 py-1 bg-gray-100 rounded-full text-gray-700 font-medium">{totalFound} found</span>
-              <span className="px-2.5 py-1 bg-green-100 rounded-full text-green-800 font-medium">✓ {fullText} of {project.maxPapers} analyzed</span>
+              <span className={`px-2.5 py-1 rounded-full font-medium ${isActuallyComplete ? "bg-green-100 text-green-800" : "bg-blue-100 text-blue-800"}`}>
+                {isActuallyComplete ? "✓" : "⟳"} {fullText} of {project.maxPapers} analyzed
+              </span>
             </div>
           )}
+
+          {/* Live step-by-step progress while processing */}
+          {(isProcessing || stopping) && (
+            <LiveAnalysisProgress
+              status={project.status}
+              totalFound={totalFound}
+              analyzed={fullText}
+              maxPapers={project.maxPapers}
+              stopping={stopping}
+            />
+          )}
+
           {project.status === "FAILED" && project.errorMessage && (
             <p className="text-sm text-red-600 mt-2">{project.errorMessage}</p>
           )}
