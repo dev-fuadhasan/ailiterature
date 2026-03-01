@@ -3,6 +3,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AvatarCircles } from "@/components/ui/avatar-circles";
+import { HeroForm } from "@/components/hero-form";
 import { createClient } from "@/lib/supabase/server";
 import {
   BookOpen,
@@ -29,25 +30,32 @@ export default async function LandingPage() {
     <div className="min-h-screen bg-[#FAFAFA] font-sans selection:bg-blue-100 text-gray-900">
       {/* Navbar */}
       <nav className="fixed top-0 inset-x-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200/50">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
             <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-sm">
               <BookOpen className="h-4 w-4 text-white" />
             </div>
             <span className="font-semibold text-xl tracking-tight">ResearchRoom <span className="text-blue-600">AI</span></span>
-          </div>
+          </Link>
           <div className="flex items-center gap-4">
-            {/* Minimalist Top Nav - Primary CTA is now entirely deferred to the Hero section */}
-             {!isSignedIn && (
-              <Link href="/login" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors hidden sm:block">
-                Sign In
+            {isSignedIn ? (
+              <Link href="/dashboard">
+                <Button variant="outline" className="rounded-full border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 font-medium">
+                  Go to Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <Link href="/login">
+                <Button variant="outline" className="rounded-full border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 font-medium">
+                  Sign In
+                </Button>
               </Link>
             )}
           </div>
         </div>
       </nav>
 
-      {/* Hero: Masterclass Centered Layout */}
+      {/* Hero: Two-Column Layout with Form */}
       <section className="relative pt-28 pb-20 md:pt-36 md:pb-24 overflow-hidden">
         {/* Sleek background decoration */}
         <div className="absolute inset-0 -z-10 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
@@ -55,55 +63,68 @@ export default async function LandingPage() {
           <div className="w-[1000px] h-[500px] bg-blue-400/20 blur-[140px] rounded-full mix-blend-multiply"></div>
         </div>
 
-        <div className="max-w-5xl mx-auto px-6 text-center">
-          <Badge variant="secondary" className="mb-6 text-blue-700 bg-blue-50/80 hover:bg-blue-100 border border-blue-200/60 rounded-full px-4 py-1.5 shadow-sm transition-colors cursor-default backdrop-blur-sm">
-            <Sparkles className="h-3.5 w-3.5 mr-2" /> Elevate your research
-          </Badge>
-          <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-gray-900 mb-6 leading-[1.1]">
-            AI-powered <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">literature reviews.</span>
-          </h1>
-          <p className="text-lg md:text-xl text-gray-500 mb-10 leading-relaxed max-w-2xl mx-auto">
-            ResearchRoom AI automates your literature review process. Enter your research topic to instantly find, download, and extract key insights from millions of academic research papers into a structured, exportable table.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-10">
-            {isSignedIn ? (
-              <Link href="/dashboard" className="w-full sm:w-auto">
-                <Button size="lg" className="w-full sm:w-auto rounded-full h-12 px-8 text-base shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 transition-all gap-2">
-                  Go to Dashboard <ArrowRight className="h-4 w-4" />
-                </Button>
-              </Link>
-            ) : (
-              <>
-                <Link href="/login" className="w-full sm:w-auto">
-                  <Button size="lg" className="w-full sm:w-auto rounded-full h-12 px-8 text-base shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 transition-all gap-2">
-                    Start Your Review <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </Link>
-                <Link href="/#how-it-works" className="w-full sm:w-auto">
-                  <Button size="lg" variant="outline" className="w-full sm:w-auto rounded-full h-12 px-8 text-base border-gray-200 bg-white/50 backdrop-blur-sm hover:bg-white hover:border-gray-300 transition-all">
-                    See How It Works
-                  </Button>
-                </Link>
-              </>
-            )}
-          </div>
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
+            
+            {/* Left Column: Copy & Trust Indicators */}
+            <div className="flex-1 text-center lg:text-left">
+              <Badge variant="secondary" className="mb-6 text-blue-700 bg-blue-50/80 hover:bg-blue-100 border border-blue-200/60 rounded-full px-4 py-1.5 shadow-sm transition-colors cursor-default backdrop-blur-sm">
+                <Sparkles className="h-3.5 w-3.5 mr-2" /> Elevate your research
+              </Badge>
+              <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-gray-900 mb-6 leading-[1.1]">
+                AI-powered <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">literature reviews.</span>
+              </h1>
+              <p className="text-lg md:text-xl text-gray-500 mb-10 leading-relaxed max-w-xl mx-auto lg:mx-0">
+                ResearchRoom AI automates your literature review process. Enter your research topic to instantly find, download, and extract key insights from millions of academic research papers into a structured, exportable table.
+              </p>
+              
+              {/* Alternative CTAs for mobile/non-form users */}
+              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 mb-10 lg:hidden">
+                {isSignedIn ? (
+                  <Link href="/dashboard" className="w-full sm:w-auto">
+                    <Button size="lg" className="w-full sm:w-auto rounded-full h-12 px-8 text-base shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 transition-all gap-2">
+                      Go to Dashboard <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                ) : (
+                  <>
+                    <Link href="/login" className="w-full sm:w-auto">
+                      <Button size="lg" className="w-full sm:w-auto rounded-full h-12 px-8 text-base shadow-lg shadow-blue-500/20 hover:shadow-xl hover:shadow-blue-500/30 transition-all gap-2">
+                        Start Your Review <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </Link>
+                    <Link href="/#how-it-works" className="w-full sm:w-auto">
+                      <Button size="lg" variant="outline" className="w-full sm:w-auto rounded-full h-12 px-8 text-base border-gray-200 bg-white/50 backdrop-blur-sm hover:bg-white hover:border-gray-300 transition-all">
+                        See How It Works
+                      </Button>
+                    </Link>
+                  </>
+                )}
+              </div>
 
-          {/* Trust indicators: Avatar circles */}
-          <div className="flex flex-col items-center justify-center gap-3">
-             <AvatarCircles 
-               numPeople={999}
-               avatarUrls={[
-                 "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=100&h=100&fit=crop&crop=faces&auto=format&q=80",
-                 "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=faces&auto=format&q=80",
-                 "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&h=100&fit=crop&crop=faces&auto=format&q=80",
-                 "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop&crop=faces&auto=format&q=80"
-               ]}
-               className="transform scale-110"
-             />
-             <p className="text-sm font-medium text-gray-600">
-               Trusted by <span className="font-semibold text-gray-900">1,000+ researchers</span> globally
-             </p>
+              {/* Trust indicators: Avatar circles */}
+              <div className="flex flex-col items-center lg:items-start justify-center gap-3">
+                <AvatarCircles 
+                  numPeople={999}
+                  avatarUrls={[
+                    "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=100&h=100&fit=crop&crop=faces&auto=format&q=80",
+                    "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=faces&auto=format&q=80",
+                    "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&h=100&fit=crop&crop=faces&auto=format&q=80",
+                    "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop&crop=faces&auto=format&q=80"
+                  ]}
+                  className="transform scale-110"
+                />
+                <p className="text-sm font-medium text-gray-600">
+                  Trusted by <span className="font-semibold text-gray-900">1,000+ researchers</span> globally
+                </p>
+              </div>
+            </div>
+
+            {/* Right Column: Interactive Form */}
+            <div className="w-full lg:w-[480px] lg:flex-shrink-0">
+              <HeroForm isSignedIn={isSignedIn} />
+            </div>
+            
           </div>
         </div>
 
