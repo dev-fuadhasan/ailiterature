@@ -62,7 +62,7 @@ const STATUS_LABELS: Record<string, string> = {
   STOPPED: "Stopped by user",
 };
 
-// Step-by-step animated progress indicator shown while analysis is running
+// Compact animated step tracker shown while analysis is running
 function LiveAnalysisProgress({
   status,
   totalFound,
@@ -76,22 +76,20 @@ function LiveAnalysisProgress({
   maxPapers: number;
   stopping: boolean;
 }) {
-  const [dot, setDot] = useState(0);
+  const [tick, setTick] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setDot((d) => (d + 1) % 4), 500);
+    const t = setInterval(() => setTick((d) => (d + 1) % 60), 300);
     return () => clearInterval(t);
   }, []);
-  const dots = ".".repeat(dot);
+  const dots = ".".repeat((tick % 4));
 
   if (stopping) {
     return (
-      <div className="mt-3 flex items-center gap-3 px-4 py-3 bg-orange-50 border border-orange-200 rounded-xl">
-        <OctagonX className="h-5 w-5 text-orange-500 shrink-0 animate-pulse" />
+      <div className="mt-3 flex items-center gap-2.5 px-3 py-2.5 bg-orange-50 border border-orange-200 rounded-lg">
+        <OctagonX className="h-4 w-4 text-orange-500 shrink-0 animate-pulse" />
         <div>
-          <p className="text-sm font-semibold text-orange-700">Stopping analysis{dots}</p>
-          <p className="text-xs text-orange-500 mt-0.5">
-            Wrapping up current paper and saving results — this may take a few seconds.
-          </p>
+          <p className="text-xs font-semibold text-orange-700">Stopping{dots}</p>
+          <p className="text-xs text-orange-400">Saving progress — almost done.</p>
         </div>
       </div>
     );
@@ -101,64 +99,98 @@ function LiveAnalysisProgress({
     {
       key: "SEARCHING",
       icon: Search,
-      label: "Searching databases",
-      detail: "Scanning Semantic Scholar, OpenAlex & arXiv for relevant papers",
+      label: "Searching",
+      sublabel: "Scanning academic databases",
       active: status === "SEARCHING",
       done: ["DOWNLOADING", "ANALYZING", "COMPLETED"].includes(status),
     },
     {
       key: "DOWNLOADING",
       icon: HardDriveDownload,
-      label: `Fetching PDFs (${totalFound} papers found)`,
-      detail: "Locating open-access full-text PDFs via Unpaywall & CORE",
+      label: "Downloading",
+      sublabel: `${totalFound} paper${totalFound !== 1 ? "s" : ""} found`,
       active: status === "DOWNLOADING",
       done: ["ANALYZING", "COMPLETED"].includes(status),
     },
     {
       key: "ANALYZING",
       icon: Brain,
-      label: `AI reading papers — ${analyzed} of ${maxPapers} complete`,
-      detail: "Groq AI is extracting methodology, findings & limitations from each paper",
+      label: "Analyzing",
+      sublabel: `${analyzed} / ${maxPapers} read`,
       active: status === "ANALYZING",
       done: status === "COMPLETED",
     },
   ];
 
   return (
-    <div className="mt-3 space-y-2">
-      {steps.map((step) => {
-        const Icon = step.icon;
-        return (
-          <div
-            key={step.key}
-            className={`flex items-start gap-3 px-4 py-3 rounded-xl border transition-colors ${
-              step.active
-                ? "bg-blue-50 border-blue-200"
-                : step.done
-                ? "bg-green-50 border-green-200 opacity-70"
-                : "bg-gray-50 border-gray-200 opacity-40"
-            }`}
-          >
-            <div className={`mt-0.5 shrink-0 ${step.active ? "text-blue-600" : step.done ? "text-green-600" : "text-gray-400"}`}>
-              {step.done ? (
-                <CheckCircle2 className="h-4 w-4" />
-              ) : step.active ? (
-                <Icon className="h-4 w-4 animate-pulse" />
-              ) : (
-                <Icon className="h-4 w-4" />
+    <div className="mt-3">
+      {/* Horizontal stepper */}
+      <div className="flex items-center gap-0">
+        {steps.map((step, i) => {
+          const Icon = step.icon;
+          const isLast = i === steps.length - 1;
+          return (
+            <div key={step.key} className="flex items-center flex-1 min-w-0">
+              <div className="flex flex-col items-center min-w-0 flex-1">
+                {/* Circle */}
+                <div
+                  className={`relative w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                    step.done
+                      ? "bg-green-100 text-green-600"
+                      : step.active
+                      ? "bg-blue-100 text-blue-600"
+                      : "bg-gray-100 text-gray-400"
+                  }`}
+                >
+                  {step.active && (
+                    <span className="absolute inset-0 rounded-full bg-blue-400 opacity-30 animate-ping" />
+                  )}
+                  {step.done ? (
+                    <CheckCircle2 className="h-4 w-4" />
+                  ) : (
+                    <Icon className={`h-4 w-4 ${step.active ? "animate-pulse" : ""}`} />
+                  )}
+                </div>
+                {/* Label */}
+                <p className={`mt-1 text-xs font-semibold text-center leading-tight ${
+                  step.active ? "text-blue-700" : step.done ? "text-green-700" : "text-gray-400"
+                }`}>
+                  {step.label}{step.active ? dots : ""}
+                </p>
+                {/* Sublabel */}
+                <p className={`text-xs text-center leading-tight mt-0.5 ${
+                  step.active ? "text-blue-500" : step.done ? "text-green-500" : "text-gray-300"
+                }`}>
+                  {step.sublabel}
+                </p>
+              </div>
+              {/* Connector line */}
+              {!isLast && (
+                <div className={`h-0.5 w-6 shrink-0 mx-1 rounded transition-colors ${
+                  steps[i + 1].done || steps[i + 1].active ? "bg-blue-300" : "bg-gray-200"
+                }`} />
               )}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className={`text-sm font-semibold ${step.active ? "text-blue-800" : step.done ? "text-green-800" : "text-gray-500"}`}>
-                {step.label}{step.active ? dots : ""}
-              </p>
-              {step.active && (
-                <p className="text-xs text-blue-600 mt-0.5">{step.detail}</p>
-              )}
-            </div>
+          );
+        })}
+      </div>
+
+      {/* Scanning bar — only shown during ANALYZING */}
+      {status === "ANALYZING" && maxPapers > 0 && (
+        <div className="mt-3">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-blue-600 font-medium">AI reading papers{dots}</span>
+            <span className="text-xs text-gray-400">{analyzed} of {maxPapers}</span>
           </div>
-        );
-      })}
+          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-blue-400 to-blue-600 rounded-full transition-all duration-700"
+              style={{ width: maxPapers > 0 ? `${Math.min(100, (analyzed / maxPapers) * 100)}%` : "0%" }}
+            />
+          </div>
+          <p className="text-xs text-gray-400 mt-1">Each paper is being read & summarized automatically</p>
+        </div>
+      )}
     </div>
   );
 }

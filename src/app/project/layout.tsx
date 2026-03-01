@@ -38,7 +38,23 @@ export default async function ProjectLayout({
           </Link>
         </nav>
         <div className="p-4 border-t border-gray-100">
-          <p className="text-xs text-gray-400 truncate">{user.email}</p>
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+              <span className="text-xs font-bold text-blue-700">
+                {(user.user_metadata?.full_name || user.user_metadata?.name || user.email || "?")
+                  .charAt(0)
+                  .toUpperCase()}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              {(user.user_metadata?.full_name || user.user_metadata?.name) && (
+                <p className="text-xs font-semibold text-gray-800 truncate leading-tight">
+                  {user.user_metadata?.full_name || user.user_metadata?.name}
+                </p>
+              )}
+              <p className="text-xs text-gray-400 truncate leading-tight">{user.email}</p>
+            </div>
+          </div>
         </div>
       </aside>
       <main className="flex-1 ml-64 min-h-screen">{children}</main>
