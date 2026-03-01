@@ -102,14 +102,32 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
       }
     }, 2000);
 
-    async function processCandidate(candidate: RankedCandidate): Promise<void> {
+    /**
+     * Keys of candidates that failed in Phase 1 (OA PDF Downloader only) and should be
+     * retried in Phase 2 with full fallback APIs (Unpaywall, OpenAlex, Semantic Scholar, HTML).
+     */
+    const failedDedupeKeys = new Set<string>();
+
+    /**
+     * @param skipFallbackApis  true  = Phase 1: OA PDF Downloader + direct GS PDF only.
+     *                          false = Phase 2: all fallback APIs enabled.
+     */
+    async function processCandidate(candidate: RankedCandidate, skipFallbackApis: boolean): Promise<void> {
       if (analyzedCount >= maxPapers || shouldStop(projectId)) return;
 
       const dedupeKey = candidate.doi
         ? `doi:${candidate.doi.toLowerCase()}`
         : `title:${candidate.title.toLowerCase().slice(0, 90)}`;
-      if (seen.has(dedupeKey)) return;
-      seen.add(dedupeKey);
+
+      if (skipFallbackApis) {
+        // Phase 1: standard dedup — skip papers already seen
+        if (seen.has(dedupeKey)) return;
+        seen.add(dedupeKey);
+      } else {
+        // Phase 2: only retry papers that failed in Phase 1
+        if (!failedDedupeKeys.has(dedupeKey)) return;
+        failedDedupeKeys.delete(dedupeKey);
+      }
 
       let paper = candidate.doi
         ? await prisma.paper.findUnique({ where: { doi: candidate.doi } })
@@ -183,15 +201,23 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
         landing_url: candidate.gsUrl || paper.pdfUrl || "",
         source: "google_scholar",
         directPdfUrl: paper.pdfUrl || candidate.pdfUrl || undefined,
+        skipFallbackApis,
       });
 
       if (!resolved || resolved.text.trim().length < 1200) {
-        failedCount++;
-        await prisma.projectPaper.update({
-          where: { projectId_paperId: { projectId, paperId: paper.id } },
-          data: { extractionStatus: "FAILED" },
-        });
-        await prisma.project.update({ where: { id: projectId }, data: { failedPapers: failedCount } });
+        if (skipFallbackApis) {
+          // Phase 1 failure: queue for Phase 2 retry with full fallback APIs
+          failedDedupeKeys.add(dedupeKey);
+          console.log(`[Worker] Phase 1 miss — queued for fallback retry: "${paper.title.slice(0, 60)}"`);
+        } else {
+          // Phase 2 failure: all methods exhausted — mark as definitively failed
+          failedCount++;
+          await prisma.projectPaper.update({
+            where: { projectId_paperId: { projectId, paperId: paper.id } },
+            data: { extractionStatus: "FAILED" },
+          });
+          await prisma.project.update({ where: { id: projectId }, data: { failedPapers: failedCount } });
+        }
         return;
       }
 
@@ -201,12 +227,16 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
 
       const analysis: ExtractionResult | null = await analyzePaper(resolved.text, paper.title, false);
       if (!analysis) {
-        failedCount++;
-        await prisma.projectPaper.update({
-          where: { projectId_paperId: { projectId, paperId: paper.id } },
-          data: { extractionStatus: "FAILED" },
-        });
-        await prisma.project.update({ where: { id: projectId }, data: { failedPapers: failedCount } });
+        if (skipFallbackApis) {
+          failedDedupeKeys.add(dedupeKey);
+        } else {
+          failedCount++;
+          await prisma.projectPaper.update({
+            where: { projectId_paperId: { projectId, paperId: paper.id } },
+            data: { extractionStatus: "FAILED" },
+          });
+          await prisma.project.update({ where: { id: projectId }, data: { failedPapers: failedCount } });
+        }
         return;
       }
 
@@ -270,14 +300,39 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
 
     try {
       const limit = createLimit(CONCURRENCY);
-      const tasks = ranked.map((candidate) =>
+
+      // ── Phase 1: OA PDF Downloader + direct GS PDF link only ──────────────────
+      // For each candidate, use the article's title_link (gsUrl) with the OA PDF
+      // Downloader API (https://oa-pdf-downloader.vercel.app/api/find-pdf) as the
+      // primary PDF resolution method. No Unpaywall / OpenAlex / Semantic Scholar
+      // calls are made in this phase — keeping credit usage minimal.
+      console.log(`[Worker] Phase 1 — OA PDF Downloader only (${ranked.length} candidates, target ${maxPapers})`);
+      const phase1Tasks = ranked.map((candidate) =>
         limit(async () => {
           if (analyzedCount >= maxPapers || shouldStop(projectId)) return;
-          await processCandidate(candidate);
+          await processCandidate(candidate, true);
         })
       );
+      await Promise.allSettled(phase1Tasks);
 
-      await Promise.allSettled(tasks);
+      // ── Phase 2: fallback APIs (Unpaywall, OpenAlex, Semantic Scholar, HTML) ──
+      // Only runs when Phase 1 did not fulfill the requested paper count.
+      if (analyzedCount < maxPapers && !shouldStop(projectId) && failedDedupeKeys.size > 0) {
+        console.log(
+          `[Worker] Phase 2 — fallback APIs for ${failedDedupeKeys.size} missed papers ` +
+          `(${analyzedCount}/${maxPapers} analyzed so far)`
+        );
+        const limit2 = createLimit(CONCURRENCY);
+        const phase2Tasks = ranked.map((candidate) =>
+          limit2(async () => {
+            if (analyzedCount >= maxPapers || shouldStop(projectId)) return;
+            await processCandidate(candidate, false);
+          })
+        );
+        await Promise.allSettled(phase2Tasks);
+      } else if (analyzedCount >= maxPapers) {
+        console.log(`[Worker] Phase 1 target met (${analyzedCount}/${maxPapers}) — skipping fallback APIs`);
+      }
 
       if (shouldStop(projectId)) {
         await markStopped(projectId);
@@ -289,7 +344,7 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
         data: {
           status: "COMPLETED",
           processedPapers: analyzedCount,
-          totalPapers: maxPapers,
+          totalPapers: analyzedCount,   // reflect actual successful papers, not requested target
           failedPapers: failedCount,
         },
       });

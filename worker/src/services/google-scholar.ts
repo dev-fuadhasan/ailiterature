@@ -19,9 +19,12 @@ export interface GoogleScholarPaper {
 
 interface RawGSResult {
   title?: string;
-  link?: string;
+  title_link?: string;  // ScrapingDog Google Scholar primary article URL
+  link?: string;        // fallback / alternate URL field
   displayed_link?: string;
   snippet?: string;
+  // ScrapingDog returns authors at the TOP LEVEL (not inside publication_info)
+  authors?: { name: string; link?: string; author_id?: string; scrapingdog_link?: string }[];
   publication_info?: {
     summary?: string;
     authors?: { name: string; link?: string }[];
@@ -29,6 +32,7 @@ interface RawGSResult {
   cited_by?: { total?: number | string };
   resources?: { file_format?: string; type?: string; link?: string }[];
   inline_links?: { cited_by?: { total?: number | string } };
+  id?: string; // ScrapingDog cluster/result id
 }
 
 function extractYear(summary: string): number | null {
@@ -138,7 +142,8 @@ function normalizeResult(raw: RawGSResult, rank: number): GoogleScholarPaper | n
     raw.publication_info?.summary ||
     "";
 
-  const link = raw.link || "";
+  // ScrapingDog returns the article landing page as "title_link"; fall back to "link"
+  const link = raw.title_link || raw.link || "";
   const doi = extractDoi(link) || (raw.title ? extractDoi(raw.title) : null);
 
   const citedBy =
@@ -146,15 +151,28 @@ function normalizeResult(raw: RawGSResult, rank: number): GoogleScholarPaper | n
     raw.inline_links?.cited_by?.total ??
     null;
 
-  const gsAuthors = (raw.publication_info?.authors || []).map((a) => ({ name: a.name }));
-  const authors = gsAuthors.length > 0 ? gsAuthors : extractAuthorsFromSummary(metaStr);
+  // ScrapingDog puts authors at the top level; fall back to publication_info, then parse displayed_link
+  const topLevelAuthors = (raw.authors || []).filter((a) => a.name).map((a) => ({ name: a.name }));
+  const pubInfoAuthors = (raw.publication_info?.authors || []).map((a) => ({ name: a.name }));
+  const authors =
+    topLevelAuthors.length > 0
+      ? topLevelAuthors
+      : pubInfoAuthors.length > 0
+      ? pubInfoAuthors
+      : extractAuthorsFromSummary(metaStr);
+
+  // Year: prefer explicit year in displayed_link/summary; ScrapingDog embeds it there
+  const year = extractYear(metaStr);
+
+  // Journal: extracted from displayed_link ("Authors - Journal, Year - domain")
+  const journal = extractJournal(metaStr);
 
   return {
     title: raw.title.trim(),
     doi,
     authors,
-    year: extractYear(metaStr),
-    journal: extractJournal(metaStr),
+    year,
+    journal,
     abstract: raw.snippet?.trim() || null,
     citationCount: parseCitationCount(citedBy),
     pdfUrl: parsePdfResource(raw.resources),
@@ -175,21 +193,19 @@ export async function searchGoogleScholar(
     return [];
   }
 
-  const queries = [
-    topic.trim(),
-    `${topic.trim()} review`,
-    `${topic.trim()} open access`,
-  ];
+  // Single query — ScrapingDog is called ONCE per page, not 3×.
+  // We paginate through enough pages to collect maxResults raw results.
+  const query = topic.trim();
+  const pagesToFetch = Math.max(1, Math.ceil(maxResults / 100));
 
   const allRaw: RawGSResult[] = [];
 
-  for (const query of queries) {
-    const pagesToFetch = Math.max(1, Math.ceil(maxResults / (queries.length * 100)));
-    for (let page = 0; page < pagesToFetch; page++) {
-      const results = await fetchOnePage(query, yearFrom, yearTo, page);
-      if (results.length === 0) break;
-      allRaw.push(...results);
-    }
+  for (let page = 0; page < pagesToFetch; page++) {
+    const results = await fetchOnePage(query, yearFrom, yearTo, page);
+    console.log(`[GS] Page ${page}: ${results.length} results`);
+    if (results.length === 0) break;
+    allRaw.push(...results);
+    if (allRaw.length >= maxResults * 1.2) break; // enough raw material
   }
 
   const seen = new Set<string>();

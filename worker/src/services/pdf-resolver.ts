@@ -26,6 +26,10 @@ export interface PaperInput {
   doi?: string;
   landing_url: string;
   source?: string;
+  /** When true, only the OA PDF Downloader and direct GS PDF links are tried.
+   *  Unpaywall, OpenAlex, Semantic Scholar, and HTML scraping are skipped.
+   *  Set to false (default) to enable all fallback sources. */
+  skipFallbackApis?: boolean;
 }
 
 export type ResolveStatus = "DOWNLOADED" | "FOUND_LINK_ONLY" | "NO_PUBLIC_PDF" | "FAILED";
@@ -160,6 +164,47 @@ async function fetchSemanticScholarCandidate(doi?: string): Promise<Candidate | 
   }
 }
 
+/**
+ * Calls the OA PDF Downloader service (https://oa-pdf-downloader.vercel.app/api/find-pdf)
+ * with the article's landing page URL (title_link from Google Scholar).
+ * Returns a direct PDF URL if found. Handles both open-access and browser-required cases.
+ */
+async function fetchOaPdfDownloaderCandidate(titleLinkUrl: string): Promise<Candidate | null> {
+  if (!titleLinkUrl) return null;
+
+  try {
+    const response = await axios.post(
+      "https://oa-pdf-downloader.vercel.app/api/find-pdf",
+      { url: titleLinkUrl },
+      {
+        headers: { "Content-Type": "application/json" },
+        timeout: 25_000,
+        validateStatus: (status) => status < 500,
+      }
+    );
+
+    if (response.status !== 200 || !response.data?.success) return null;
+
+    const pdfUrl: string | undefined = response.data.pdfUrl;
+    if (!pdfUrl) return null;
+
+    console.log(
+      `[OAPDFDownloader] Found PDF for ${titleLinkUrl} → ${pdfUrl}` +
+        (response.data.requiresBrowser ? " (requiresBrowser)" : "")
+    );
+
+    return {
+      url: pdfUrl,
+      method: "html_link",
+      selector: `oa-pdf-downloader:${response.data.journal || "unknown"}`,
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn("[OAPDFDownloader] Error for", titleLinkUrl, ":", msg);
+    return null;
+  }
+}
+
 function extractCandidatesFromHtml(html: string, baseUrl: string): Candidate[] {
   const $ = cheerio.load(html);
   const candidates: Candidate[] = [];
@@ -287,6 +332,7 @@ export async function resolveAndFetchPdf(
 ): Promise<ResolvedPdfDownload | null> {
   const candidates: Candidate[] = [];
 
+  // 1. Direct PDF link surfaced by Google Scholar (highest priority)
   if (paper.directPdfUrl && looksLikePdf(paper.directPdfUrl)) {
     candidates.push({
       url: paper.directPdfUrl,
@@ -295,17 +341,30 @@ export async function resolveAndFetchPdf(
     });
   }
 
-  const [fromUnpaywall, fromOpenAlex, fromSemanticScholar, fromHtml] = await Promise.all([
-    fetchUnpaywallCandidate(paper.doi),
-    fetchOpenAlexCandidate(paper.doi),
-    fetchSemanticScholarCandidate(paper.doi),
-    fetchHtmlCandidates(paper.landing_url),
-  ]);
-
-  if (fromUnpaywall) candidates.push(fromUnpaywall);
-  if (fromOpenAlex) candidates.push(fromOpenAlex);
-  if (fromSemanticScholar) candidates.push(fromSemanticScholar);
-  candidates.push(...fromHtml);
+  // 2. OA PDF Downloader — use the article landing page (title_link) to resolve a direct PDF URL.
+  //    This is run concurrently with optional fallback OA database lookups.
+  if (paper.skipFallbackApis) {
+    // Phase 1: OA PDF Downloader only — skip expensive fallback API calls
+    const fromOaPdfDownloader = paper.landing_url
+      ? await fetchOaPdfDownloaderCandidate(paper.landing_url)
+      : null;
+    if (fromOaPdfDownloader) candidates.push(fromOaPdfDownloader);
+  } else {
+    // Phase 2 (or full resolve): OA PDF Downloader + all fallback sources
+    const [fromOaPdfDownloader, fromUnpaywall, fromOpenAlex, fromSemanticScholar, fromHtml] =
+      await Promise.all([
+        paper.landing_url ? fetchOaPdfDownloaderCandidate(paper.landing_url) : Promise.resolve(null),
+        fetchUnpaywallCandidate(paper.doi),
+        fetchOpenAlexCandidate(paper.doi),
+        fetchSemanticScholarCandidate(paper.doi),
+        fetchHtmlCandidates(paper.landing_url),
+      ]);
+    if (fromOaPdfDownloader) candidates.push(fromOaPdfDownloader);
+    if (fromUnpaywall) candidates.push(fromUnpaywall);
+    if (fromOpenAlex) candidates.push(fromOpenAlex);
+    if (fromSemanticScholar) candidates.push(fromSemanticScholar);
+    candidates.push(...fromHtml);
+  }
 
   const uniqueCandidates = dedupeCandidates(candidates).slice(0, 15);
 
