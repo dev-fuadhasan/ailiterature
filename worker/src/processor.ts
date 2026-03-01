@@ -10,6 +10,22 @@ import { shouldStop, markShouldStop, clearStop } from "./lib/stop-signal";
 const CONCURRENCY = 4;
 
 /**
+ * Helper to safely update project status, ignoring "Record to update not found" (P2025) errors.
+ * This prevents the worker from crashing if the project is deleted mid-processing.
+ */
+async function safeProjectUpdate(projectId: string, data: any) {
+  try {
+    await prisma.project.update({ where: { id: projectId }, data });
+  } catch (err: any) {
+    if (err.code === "P2025") {
+      console.warn(`[Worker] Skipped project update for ${projectId} (record not found/deleted).`);
+    } else {
+      throw err;
+    }
+  }
+}
+
+/**
  * Lightweight CJS-compatible concurrency limiter (replaces p-limit ESM dependency).
  * At most `concurrency` promises run simultaneously; extras are queued.
  */
@@ -60,7 +76,7 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
   console.log(`[Worker] Starting project ${projectId}: "${topic}" — target ${maxPapers} fully analyzed PDFs`);
 
   try {
-    await prisma.project.update({ where: { id: projectId }, data: { status: "SEARCHING" } });
+    await safeProjectUpdate(projectId, { status: "SEARCHING" });
 
     const searchTarget = Math.min(Math.max(maxPapers * 4, 80), 400);
     const gsPapers = await searchGoogleScholar(topic, yearFrom, yearTo, searchTarget);
@@ -98,7 +114,7 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
     ranked.splice(0, ranked.length, ...oaRanked, ...nonOaRanked);
     console.log(`[Worker] OA-domain papers: ${oaRanked.length} (sent first) | non-OA: ${nonOaRanked.length}`);
 
-    await prisma.project.update({ where: { id: projectId }, data: { status: "DOWNLOADING", totalPapers: maxPapers } });
+    await safeProjectUpdate(projectId, { status: "DOWNLOADING", totalPapers: maxPapers });
 
     let analyzedCount = 0;
     let failedCount = 0;
@@ -197,9 +213,8 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
           where: { projectId_paperId: { projectId, paperId: paper.id } },
           data: { extractionStatus: "COMPLETED" },
         });
-        await prisma.project.update({
-          where: { id: projectId },
-          data: { status: "ANALYZING", processedPapers: analyzedCount },
+        await safeProjectUpdate(projectId, {
+          status: "ANALYZING", processedPapers: analyzedCount
         });
         return;
       }
@@ -227,14 +242,14 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
             where: { projectId_paperId: { projectId, paperId: paper.id } },
             data: { extractionStatus: "FAILED" },
           });
-          await prisma.project.update({ where: { id: projectId }, data: { failedPapers: failedCount } });
+          await safeProjectUpdate(projectId, { failedPapers: failedCount });
         }
         return;
       }
 
       if (shouldStop(projectId)) return;
 
-      await prisma.project.update({ where: { id: projectId }, data: { status: "ANALYZING" } });
+      await safeProjectUpdate(projectId, { status: "ANALYZING" });
 
       const analysis: ExtractionResult | null = await analyzePaper(resolved.text, paper.title, false);
       if (!analysis) {
@@ -246,7 +261,7 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
             where: { projectId_paperId: { projectId, paperId: paper.id } },
             data: { extractionStatus: "FAILED" },
           });
-          await prisma.project.update({ where: { id: projectId }, data: { failedPapers: failedCount } });
+          await safeProjectUpdate(projectId, { failedPapers: failedCount });
         }
         return;
       }
@@ -303,10 +318,7 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
         data: { extractionStatus: "COMPLETED" },
       });
 
-      await prisma.project.update({
-        where: { id: projectId },
-        data: { processedPapers: analyzedCount, status: "ANALYZING" },
-      });
+      await safeProjectUpdate(projectId, { processedPapers: analyzedCount, status: "ANALYZING" });
     }
 
     try {
@@ -350,14 +362,11 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
         return;
       }
 
-      await prisma.project.update({
-        where: { id: projectId },
-        data: {
-          status: "COMPLETED",
-          processedPapers: analyzedCount,
-          totalPapers: analyzedCount,   // reflect actual successful papers, not requested target
-          failedPapers: failedCount,
-        },
+      await safeProjectUpdate(projectId, {
+        status: "COMPLETED",
+        processedPapers: analyzedCount,
+        totalPapers: analyzedCount,   // reflect actual successful papers, not requested target
+        failedPapers: failedCount,
       });
       console.log(`[Worker] Done — analyzed ${analyzedCount}/${maxPapers}, failed ${failedCount}`);
     } finally {
@@ -367,13 +376,13 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
 
   } catch (err) {
     console.error(`[Worker] Fatal error for project ${projectId}:`, err);
-    await prisma.project.update({ where: { id: projectId }, data: { status: "FAILED", errorMessage: err instanceof Error ? err.message : "Unknown error" } });
+    await safeProjectUpdate(projectId, { status: "FAILED", errorMessage: err instanceof Error ? err.message : "Unknown error" });
     throw err;
   }
 }
 
 async function markStopped(projectId: string): Promise<void> {
   clearStop(projectId);
-  await prisma.project.update({ where: { id: projectId }, data: { status: "STOPPED" } });
+  await safeProjectUpdate(projectId, { status: "STOPPED" });
   console.log(`[Worker] Project ${projectId} stopped`);
 }

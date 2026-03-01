@@ -12,7 +12,7 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 // so only ONE request runs at a time. PDF downloading/resolving stays fully
 // parallel — only the cheap ~1-2 second LLM call is serialised.
 // A minimum inter-call gap (MIN_GROQ_GAP_MS) prevents back-to-back bursts.
-const MIN_GROQ_GAP_MS = 800;
+const MIN_GROQ_GAP_MS = 4000;
 let _groqChain: Promise<unknown> = Promise.resolve();
 
 function enqueueGroqCall<T>(fn: () => Promise<T>): Promise<T> {
@@ -34,10 +34,9 @@ function enqueueGroqCall<T>(fn: () => Promise<T>): Promise<T> {
 // openai/gpt-oss-20b      : 131K ctx, 65K max-completion, 250K TPM — fast fallback
 // llama-3.1-8b-instant    : 131K ctx, 131K max-completion, 250K TPM — high-throughput last resort
 const MODELS: { id: string; maxChars: number }[] = [
-  { id: "llama-3.3-70b-versatile", maxChars: 48_000 },
-  { id: "openai/gpt-oss-120b",     maxChars: 80_000 },
-  { id: "openai/gpt-oss-20b",      maxChars: 80_000 },
-  { id: "llama-3.1-8b-instant",    maxChars: 90_000 },
+  { id: "llama-3.3-70b-versatile", maxChars: 40_000 },
+  { id: "openai/gpt-oss-120b",     maxChars: 70_000 },
+  { id: "llama-3.1-8b-instant",    maxChars: 80_000 },
 ];
 
 // ─── Zod schema — validates & coerces AI output ────────────────────────────
@@ -140,8 +139,8 @@ Use "Not specified." for fields that cannot be determined from the available tex
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 /** Exponential backoff with full jitter: base * 2^attempt + random(0, base) */
-function backoffMs(attempt: number, base = 1500): number {
-  return Math.min(base * 2 ** attempt + Math.random() * base, 30_000);
+function backoffMs(attempt: number, base = 5000): number {
+  return Math.min(base * 2 ** attempt + Math.random() * base, 60_000);
 }
 
 // ─── Output validator ──────────────────────────────────────────────────────
