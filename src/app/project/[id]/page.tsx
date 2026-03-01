@@ -370,13 +370,13 @@ export default function ProjectPage() {
   if (loading) return <div className="flex items-center justify-center h-64"><Spinner size="lg" /></div>;
   if (!project) return <div className="p-8 text-center"><p className="text-gray-500">Project not found.</p></div>;
 
+  const totalFound = project.papers.length;
+  const fullText = project.papers.filter((p) => p.extractionStatus === "COMPLETED").length;
+
   const isTerminal = ["COMPLETED", "FAILED", "STOPPED"].includes(project.status);
   // Only treat as fully complete when the backend says COMPLETED AND we hit the target count
   const isActuallyComplete = project.status === "COMPLETED" && fullText >= project.maxPapers;
   const isProcessing = !isTerminal || (!isActuallyComplete && project.status === "COMPLETED");
-
-  const totalFound = project.papers.length;
-  const fullText = project.papers.filter((p) => p.extractionStatus === "COMPLETED").length;
 
   const progress = project.maxPapers > 0 ? Math.min(100, Math.round((fullText / project.maxPapers) * 100)) : 0;
 
