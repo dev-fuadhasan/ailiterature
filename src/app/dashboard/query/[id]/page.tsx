@@ -21,7 +21,7 @@ export default async function QueryDashboard({ params }: { params: Promise<{ id:
                 },
             },
         },
-    });
+    }).catch(() => null);
 
     if (!query || query.userId !== session.user.id) {
         redirect("/");
