@@ -30,15 +30,14 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         {/* Logo */}
-        <div className="flex items-center justify-center gap-2 mb-8">
+        <div className="flex justify-center mb-8">
           <Image 
             src="/logo.png" 
             alt="ResearchRoom AI Logo" 
-            width={32} 
-            height={32}
+            width={140} 
+            height={140}
             className="object-contain"
           />
-          <span className="font-bold text-2xl text-gray-900">ResearchRoom AI</span>
         </div>
 
         <Card>

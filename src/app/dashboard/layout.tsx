@@ -21,15 +21,14 @@ export default async function DashboardLayout({
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col fixed h-full">
         {/* Logo */}
         <div className="p-6 border-b border-gray-100">
-          <Link href="/dashboard" className="flex items-center gap-2">
+          <Link href="/dashboard" className="inline-block">
             <Image 
               src="/logo.png" 
               alt="ResearchRoom AI Logo" 
-              width={24} 
-              height={24}
+              width={100} 
+              height={100}
               className="object-contain"
             />
-            <span className="font-bold text-gray-900">ResearchRoom AI</span>
           </Link>
         </div>
 
