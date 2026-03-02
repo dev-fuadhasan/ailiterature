@@ -7,6 +7,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: '/',
       disallow: ['/dashboard/', '/project/', '/api/', '/auth/'],
     },
-    sitemap: 'https://researchroomai.vercel.app/sitemap.xml',
+    sitemap: 'https://researchroomai.com/sitemap.xml',
   };
 }

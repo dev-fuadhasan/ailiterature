@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import prisma from "@/lib/prisma";
 import { getResearchQueue } from "@/lib/queue";
+import { rateLimit } from "@/lib/rate-limit";
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -23,6 +24,10 @@ export async function GET() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Rate limit: 30 requests per minute per user
+  const rateLimitResult = rateLimit(user.id, { limit: 30, window: 60000 });
+  if (rateLimitResult) return rateLimitResult;
 
   const projects = await prisma.project.findMany({
     where: { userId: user.id },
@@ -52,6 +57,10 @@ export async function POST(request: Request) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    // Rate limit: 5 new projects per minute per user
+    const rateLimitResult = rateLimit(user.id, { limit: 5, window: 60000 });
+    if (rateLimitResult) return rateLimitResult;
 
     const body = await request.json();
     const { topic, yearFrom, yearTo, maxPapers } = body;

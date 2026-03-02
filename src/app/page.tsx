@@ -34,7 +34,7 @@ export default async function LandingPage() {
           <Link href="/" className="hover:opacity-80 transition-opacity">
             <Image 
               src="/logo.png" 
-              alt="ResearchRoom AI Logo" 
+              alt="Research Room AI Logo" 
               width={120} 
               height={120}
               className="object-contain"

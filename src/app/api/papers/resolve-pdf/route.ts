@@ -16,6 +16,7 @@ import { NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 import { pdfResolverQueue } from "@/lib/pdf-queue";
+import { rateLimit } from "@/lib/rate-limit";
 import type { PaperInput } from "@/types/pdf-resolver";
 
 export async function POST(request: Request) {
@@ -26,6 +27,10 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
   if (!user)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Rate limit: 20 PDF resolutions per minute per user
+  const rateLimitResult = rateLimit(user.id, { limit: 20, window: 60000 });
+  if (rateLimitResult) return rateLimitResult;
 
   // Parse body
   let body: PaperInput;

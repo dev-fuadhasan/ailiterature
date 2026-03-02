@@ -13,12 +13,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://researchroomai.vercel.app"),
+  metadataBase: new URL("https://researchroomai.com"),
   title: {
-    default: "ResearchRoom AI - Automated Literature Review Generator",
-    template: "%s | ResearchRoom AI"
+    default: "Research Room AI - Automated Literature Review Generator",
+    template: "%s | Research Room AI"
   },
-  description: "Automate your literature review with AI-powered research assistant. ResearchRoom quickly searches millions of academic papers, reads full texts, and extracts key findings, methodology, and limitations for your research paper.",
+  description: "Automate your literature review with AI-powered research assistant. Research Room quickly searches millions of academic papers, reads full texts, and extracts key findings, methodology, and limitations for your research paper.",
   keywords: [
     "literature review AI",
     "research paper assistant",
@@ -31,10 +31,10 @@ export const metadata: Metadata = {
     "academic paper analysis",
     "scholarly article search"
   ],
-  authors: [{ name: "ResearchRoom AI" }],
-  creator: "ResearchRoom AI",
-  publisher: "ResearchRoom AI",
-  applicationName: "ResearchRoom AI",
+  authors: [{ name: "Research Room AI" }],
+  creator: "Research Room AI",
+  publisher: "Research Room AI",
+  applicationName: "Research Room AI",
   icons: {
     icon: "/favicon.png",
     shortcut: "/favicon.png",
@@ -43,14 +43,14 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://researchroomai.vercel.app",
-    title: "ResearchRoom AI - Automated Literature Review Generator",
+    url: "https://researchroomai.com",
+    title: "Research Room AI - Automated Literature Review Generator",
     description: "Automate your literature review in minutes. Our AI searches, reads, and synthesizes academic papers into structured tables for your research.",
-    siteName: "ResearchRoom AI",
+    siteName: "Research Room AI",
   },
   twitter: {
     card: "summary_large_image",
-    title: "ResearchRoom AI - Automate Your Literature Review",
+    title: "Research Room AI - Automate Your Literature Review",
     description: "AI-powered research assistant that finds, reads, and summarizes academic papers for your literature review instantly.",
     creator: "@researchroomai",
   },
@@ -66,7 +66,7 @@ export const metadata: Metadata = {
     },
   },
   alternates: {
-    canonical: "https://researchroomai.vercel.app",
+    canonical: "https://researchroomai.com",
   },
   category: "technology",
 };
@@ -79,19 +79,19 @@ export default function RootLayout({
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    "name": "ResearchRoom AI",
+    "name": "Research Room AI",
     "applicationCategory": "BusinessApplication",
     "offers": {
       "@type": "Offer",
       "price": "0",
       "priceCurrency": "USD"
     },
-    "description": "Automate your literature review with AI-powered research assistant. ResearchRoom quickly searches millions of academic papers, reads full texts, and extracts key findings.",
+    "description": "Automate your literature review with AI-powered research assistant. Research Room quickly searches millions of academic papers, reads full texts, and extracts key findings.",
     "operatingSystem": "Any",
-    "url": "https://researchroomai.vercel.app",
+    "url": "https://researchroomai.com",
     "author": {
       "@type": "Organization",
-      "name": "ResearchRoom AI"
+      "name": "Research Room AI"
     },
     "aggregateRating": {
       "@type": "AggregateRating",

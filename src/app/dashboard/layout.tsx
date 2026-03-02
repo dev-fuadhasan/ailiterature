@@ -8,7 +8,7 @@ import { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Dashboard",
-  description: "Manage your research projects and literature reviews in ResearchRoom AI dashboard.",
+  description: "Manage your research projects and literature reviews in Research Room AI dashboard.",
   robots: {
     index: false,
     follow: false,
@@ -34,7 +34,7 @@ export default async function DashboardLayout({
           <Link href="/dashboard" className="inline-block">
             <Image 
               src="/logo.png" 
-              alt="ResearchRoom AI Logo" 
+              alt="Research Room AI Logo" 
               width={100} 
               height={100}
               className="object-contain"
