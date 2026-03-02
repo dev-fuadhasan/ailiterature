@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { PlanStatus } from "@/components/plan-status";
 import {
   PlusCircle, FileText, Clock, CheckCircle, XCircle,
   Loader, Trash2, Search, HardDriveDownload, Brain,
@@ -32,8 +33,19 @@ type ProjectItem = {
   createdAt: string;
 };
 
+type UserProfile = {
+  planType: "FREE" | "PREMIUM";
+  subscriptionStatus: "ACTIVE" | "TRIALING" | "CANCELLED" | "EXPIRED" | "PAST_DUE";
+  literatureReviewCount: number;
+  trialStartDate: string;
+  trialEndDate?: string | null;
+  subscriptionEndDate?: string | null;
+  planPeriod?: "MONTHLY" | "YEARLY" | null;
+};
+
 export default function DashboardPage() {
   const [projects, setProjects] = useState<ProjectItem[]>([]);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -46,7 +58,19 @@ export default function DashboardPage() {
     }
   }
 
-  useEffect(() => { fetchProjects(); }, []);
+  async function fetchProfile() {
+    try {
+      const res = await fetch("/api/profile");
+      if (res.ok) setProfile(await res.json());
+    } catch (error) {
+      console.error("Failed to fetch profile:", error);
+    }
+  }
+
+  useEffect(() => { 
+    fetchProjects();
+    fetchProfile();
+  }, []);
 
   async function handleDelete(e: React.MouseEvent, projectId: string, topic: string) {
     e.preventDefault();
@@ -74,7 +98,7 @@ export default function DashboardPage() {
   return (
     <div className="p-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">My Literature Reviews</h1>
           <p className="text-gray-500 mt-1">
@@ -89,6 +113,21 @@ export default function DashboardPage() {
           </Button>
         </Link>
       </div>
+
+      {/* Plan Status */}
+      {profile && (
+        <div className="mb-8">
+          <PlanStatus
+            planType={profile.planType}
+            subscriptionStatus={profile.subscriptionStatus}
+            literatureReviewCount={profile.literatureReviewCount}
+            trialStartDate={profile.trialStartDate}
+            trialEndDate={profile.trialEndDate}
+            subscriptionEndDate={profile.subscriptionEndDate}
+            planPeriod={profile.planPeriod}
+          />
+        </div>
+      )}
 
       {projects.length === 0 ? (
         /* Empty state */

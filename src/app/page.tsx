@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AvatarCircles } from "@/components/ui/avatar-circles";
 import { HeroForm } from "@/components/hero-form";
+import { PricingPlans } from "@/components/pricing-plans";
 import { createClient } from "@/lib/supabase/server";
 import {
   BookOpen,
@@ -41,6 +42,11 @@ export default async function LandingPage() {
             />
           </Link>
           <div className="flex items-center gap-4">
+            <Link href="/#pricing">
+              <Button variant="ghost" className="rounded-full font-medium hover:bg-gray-100">
+                Pricing
+              </Button>
+            </Link>
             {isSignedIn ? (
               <Link href="/dashboard">
                 <Button variant="outline" className="rounded-full border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 font-medium">
@@ -190,6 +196,24 @@ export default async function LandingPage() {
             </div>
             
           </div>
+        </div>
+      </section>
+
+      {/* Pricing */}
+      <section id="pricing" className="py-24 px-6 bg-white">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16">
+            <Badge variant="secondary" className="mb-4 text-blue-700 bg-blue-50/80 hover:bg-blue-100 border border-blue-200/60 rounded-full px-4 py-1.5 shadow-sm transition-colors cursor-default backdrop-blur-sm">
+              <Zap className="h-3.5 w-3.5 mr-2" /> Simple Pricing
+            </Badge>
+            <h2 className="text-4xl md:text-5xl tracking-tight font-bold text-gray-900 mb-4">
+              Choose Your Plan
+            </h2>
+            <p className="text-gray-500 max-w-2xl mx-auto text-lg">
+              Start with a free trial, then upgrade to Premium for unlimited literature reviews
+            </p>
+          </div>
+          <PricingPlans showCurrentBadge={false} />
         </div>
       </section>
 

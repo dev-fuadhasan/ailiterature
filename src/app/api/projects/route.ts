@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import prisma from "@/lib/prisma";
 import { getResearchQueue } from "@/lib/queue";
 import { rateLimit } from "@/lib/rate-limit";
+import { checkPlanLimits } from "@/lib/plan-limits";
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -73,11 +74,34 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Year from must be before year to" }, { status: 400 });
     }
 
-    await prisma.profile.upsert({
+    // Ensure profile exists and get plan information
+    const profile = await prisma.profile.upsert({
       where: { userId: user.id },
-      create: { userId: user.id, email: user.email! },
+      create: { 
+        userId: user.id, 
+        email: user.email!,
+        planType: "FREE",
+        subscriptionStatus: "TRIALING",
+        literatureReviewCount: 0,
+        trialStartDate: new Date(),
+      },
       update: {},
     });
+
+    // Check plan limits
+    const planCheck = checkPlanLimits(profile);
+    
+    if (!planCheck.canCreateProject) {
+      return NextResponse.json(
+        { 
+          error: planCheck.reason || "Plan limit reached",
+          needsUpgrade: planCheck.needsUpgrade,
+          remainingReviews: planCheck.remainingReviews,
+          isTrialExpired: planCheck.isTrialExpired,
+        },
+        { status: 403 }
+      );
+    }
 
     const project = await prisma.project.create({
       data: {
@@ -89,6 +113,18 @@ export async function POST(request: Request) {
         status: "PENDING",
       },
     });
+
+    // Increment literature review count for free users
+    if (profile.planType === "FREE") {
+      await prisma.profile.update({
+        where: { userId: user.id },
+        data: {
+          literatureReviewCount: {
+            increment: 1,
+          },
+        },
+      });
+    }
 
     const queue = getResearchQueue();
     if (!queue) {

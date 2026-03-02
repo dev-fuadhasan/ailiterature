@@ -22,6 +22,7 @@ export function HeroForm({ isSignedIn }: HeroFormProps) {
   const [yearTo, setYearTo] = useState(String(currentYear))
   const [maxPapers, setMaxPapers] = useState("20")
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -37,6 +38,7 @@ export function HeroForm({ isSignedIn }: HeroFormProps) {
     }
 
     setIsLoading(true)
+    setError(null)
     
     try {
       const response = await fetch("/api/projects", {
@@ -53,12 +55,26 @@ export function HeroForm({ isSignedIn }: HeroFormProps) {
       if (response.ok) {
         const { projectId } = await response.json()
         router.push(`/project/${projectId}`)
+      } else if (response.status === 403) {
+        // Plan limit reached
+        const data = await response.json()
+        if (data.needsUpgrade) {
+          setError(data.error)
+          // Redirect to pricing page after 2 seconds
+          setTimeout(() => {
+            router.push("/pricing")
+          }, 2000)
+        } else {
+          setError(data.error || "Unable to create review")
+        }
+        setIsLoading(false)
       } else {
-        console.error("Failed to create project")
+        setError("Failed to create project. Please try again.")
         setIsLoading(false)
       }
     } catch (error) {
       console.error("Error creating project:", error)
+      setError("An error occurred. Please try again.")
       setIsLoading(false)
     }
   }
@@ -146,6 +162,12 @@ export function HeroForm({ isSignedIn }: HeroFormProps) {
             </SelectContent>
           </Select>
         </div>
+
+        {error && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-700">{error}</p>
+          </div>
+        )}
 
         <Button
           type="submit"

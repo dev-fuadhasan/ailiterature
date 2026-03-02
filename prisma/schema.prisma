@@ -23,15 +23,42 @@ enum ExtractionStatus {
   FAILED
 }
 
+enum PlanType {
+  FREE
+  PREMIUM
+}
+
+enum PlanPeriod {
+  MONTHLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  CANCELLED
+  EXPIRED
+  PAST_DUE
+}
+
 model Profile {
-  id        String   @id @default(uuid())
-  userId    String   @unique @map("user_id")
-  email     String
-  name      String?
-  avatarUrl String?  @map("avatar_url")
-  plan      String   @default("free")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id                     String              @id @default(uuid())
+  userId                 String              @unique @map("user_id")
+  email                  String
+  name                   String?
+  avatarUrl              String?             @map("avatar_url")
+  planType               PlanType            @default(FREE) @map("plan_type")
+  planPeriod             PlanPeriod?         @map("plan_period")
+  subscriptionStatus     SubscriptionStatus  @default(TRIALING) @map("subscription_status")
+  subscriptionId         String?             @map("subscription_id")
+  paddleCustomerId       String?             @map("paddle_customer_id")
+  literatureReviewCount  Int                 @default(0) @map("literature_review_count")
+  trialStartDate         DateTime            @default(now()) @map("trial_start_date")
+  trialEndDate           DateTime?           @map("trial_end_date")
+  subscriptionStartDate  DateTime?           @map("subscription_start_date")
+  subscriptionEndDate    DateTime?           @map("subscription_end_date")
+  createdAt              DateTime            @default(now()) @map("created_at")
+  updatedAt              DateTime            @updatedAt @map("updated_at")
 
   projects Project[]
 
