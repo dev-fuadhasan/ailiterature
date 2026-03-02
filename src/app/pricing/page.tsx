@@ -1,26 +1,51 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { PricingPlans } from "@/components/pricing-plans";
 import { Spinner } from "@/components/ui/spinner";
 import { ArrowLeft } from "lucide-react";
+import { usePaddle } from "@/hooks/use-paddle";
+import { createClient } from "@/lib/supabase/client";
 
 type UserProfile = {
   planType: "FREE" | "PREMIUM";
+  userId: string;
+  email?: string;
 };
 
-export default function PricingPage() {
+function PricingContent() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [cancelledMessage, setCancelledMessage] = useState(false);
+  const { isLoaded, openCheckout, priceIds } = usePaddle();
+  const searchParams = useSearchParams();
+
+  // Handle payment cancelled redirect
+  useEffect(() => {
+    if (searchParams.get("payment") === "cancelled") {
+      setCancelledMessage(true);
+      window.history.replaceState({}, "", "/pricing");
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     async function fetchProfile() {
       try {
         const res = await fetch("/api/profile");
         if (res.ok) {
-          setProfile(await res.json());
+          const data = await res.json();
+          
+          // Also get user email from Supabase
+          const supabase = createClient();
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          setProfile({
+            ...data,
+            email: user?.email,
+          });
         }
       } catch (error) {
         console.error("Failed to fetch profile:", error);
@@ -32,8 +57,23 @@ export default function PricingPage() {
   }, []);
 
   function handleSelectPlan(plan: "MONTHLY" | "YEARLY") {
-    // TODO: Integrate with Paddle payment
-    alert(`Paddle payment integration will be added here for ${plan} plan`);
+    if (!isLoaded) {
+      alert("Payment system is loading, please try again in a moment.");
+      return;
+    }
+
+    if (!profile?.userId) {
+      alert("Please sign in to upgrade your plan.");
+      return;
+    }
+
+    const priceId = plan === "MONTHLY" ? priceIds.monthly : priceIds.yearly;
+    
+    openCheckout({
+      priceId,
+      userId: profile.userId,
+      userEmail: profile.email,
+    });
   }
 
   return (
@@ -67,6 +107,25 @@ export default function PricingPage() {
             Start with a free trial, then upgrade to Premium for unlimited literature reviews
           </p>
         </div>
+
+        {/* Payment Cancelled Message */}
+        {cancelledMessage && (
+          <div className="mb-8 max-w-2xl mx-auto">
+            <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-4 rounded-lg">
+              <div className="flex items-center justify-between">
+                <p className="font-medium">
+                  Payment was cancelled. No worries - you can try again when you&apos;re ready!
+                </p>
+                <button
+                  onClick={() => setCancelledMessage(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div className="flex justify-center py-16">
@@ -134,5 +193,17 @@ function FAQItem({ question, answer }: { question: string; answer: string }) {
       <h3 className="font-semibold text-gray-900 mb-2">{question}</h3>
       <p className="text-gray-600">{answer}</p>
     </div>
+  );
+}
+
+export default function PricingPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Spinner size="lg" />
+      </div>
+    }>
+      <PricingContent />
+    </Suspense>
   );
 }

@@ -25,6 +25,7 @@ export async function GET() {
 
     // Type-safe response with proper fields from updated schema
     return NextResponse.json({
+      userId: profile.userId,
       planType: (profile as any).planType || "FREE",
       planPeriod: (profile as any).planPeriod || null,
       subscriptionStatus: (profile as any).subscriptionStatus || "TRIALING",

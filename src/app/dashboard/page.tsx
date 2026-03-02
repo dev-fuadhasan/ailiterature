@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -43,11 +44,33 @@ type UserProfile = {
   planPeriod?: "MONTHLY" | "YEARLY" | null;
 };
 
-export default function DashboardPage() {
+function DashboardContent() {
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [paymentMessage, setPaymentMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  
+  const searchParams = useSearchParams();
+
+  // Handle payment redirect messages
+  useEffect(() => {
+    const payment = searchParams.get("payment");
+    if (payment === "success") {
+      setPaymentMessage({
+        type: "success",
+        text: "🎉 Payment successful! Your Premium plan is now active.",
+      });
+      // Clear the URL parameter
+      window.history.replaceState({}, "", "/dashboard");
+    } else if (payment === "cancelled") {
+      setPaymentMessage({
+        type: "error",
+        text: "Payment was cancelled. You can try again from the pricing page.",
+      });
+      window.history.replaceState({}, "", "/dashboard");
+    }
+  }, [searchParams]);
 
   async function fetchProjects() {
     try {
@@ -114,6 +137,27 @@ export default function DashboardPage() {
         </Link>
       </div>
 
+      {/* Payment Success/Cancel Message */}
+      {paymentMessage && (
+        <div
+          className={`mb-6 p-4 rounded-lg border ${
+            paymentMessage.type === "success"
+              ? "bg-green-50 border-green-200 text-green-800"
+              : "bg-yellow-50 border-yellow-200 text-yellow-800"
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <p className="font-medium">{paymentMessage.text}</p>
+            <button
+              onClick={() => setPaymentMessage(null)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Plan Status */}
       {profile && (
         <div className="mb-8">
@@ -154,6 +198,18 @@ export default function DashboardPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-screen">
+        <Spinner size="lg" />
+      </div>
+    }>
+      <DashboardContent />
+    </Suspense>
   );
 }
 
