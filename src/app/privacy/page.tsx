@@ -99,23 +99,6 @@ export default function PrivacyPage() {
             <p className="text-gray-700 leading-relaxed mt-4">
               Paper text is sent to these AI services for analysis. These services may temporarily process but do not permanently store your research content.
             </p>
-
-            <h3 className="text-xl font-semibold text-gray-900 mb-3 mt-6">3.3 Academic Data Sources</h3>
-            <ul className="list-disc pl-6 text-gray-700 space-y-2">
-              <li><strong>Google Scholar:</strong> Academic paper search (via ScrapingDog API)</li>
-              <li><strong>Unpaywall:</strong> Open-access PDF discovery</li>
-              <li><strong>OpenAlex:</strong> Academic metadata</li>
-              <li><strong>Semantic Scholar:</strong> Paper metadata and citations</li>
-            </ul>
-
-            <h3 className="text-xl font-semibold text-gray-900 mb-3 mt-6">3.4 Infrastructure</h3>
-            <ul className="list-disc pl-6 text-gray-700 space-y-2">
-              <li><strong>Vercel:</strong> Hosting and CDN services</li>
-              <li><strong>Railway:</strong> Backend infrastructure and worker processes</li>
-              <li><strong>Cloudflare R2:</strong> PDF file storage</li>
-              <li><strong>Redis:</strong> Job queue and caching</li>
-              <li><strong>PostgreSQL:</strong> Primary database via Supabase</li>
-            </ul>
           </section>
 
           <section>
