@@ -35,6 +35,13 @@ export async function updateSession(request: NextRequest) {
     url.pathname.startsWith("/dashboard") ||
     url.pathname.startsWith("/project");
 
+  // Handle OAuth callback with code parameter on homepage
+  if (url.searchParams.has("code") && url.pathname === "/") {
+    url.pathname = "/auth/callback";
+    url.searchParams.set("code", url.searchParams.get("code")!);
+    return NextResponse.redirect(url);
+  }
+
   if (!user && isProtected) {
     url.pathname = "/login";
     return NextResponse.redirect(url);
