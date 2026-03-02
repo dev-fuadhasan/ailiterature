@@ -210,7 +210,7 @@ function PricingContent() {
             />
             <FAQItem
               question="Can I cancel my Premium subscription anytime?"
-              answer="Yes! You can cancel anytime from your dashboard Settings. You'll retain Premium access until the end of your billing period, and then your account will revert to Free. Refunds are only available within 7 days of your initial upgrade."
+              answer="Yes! You can cancel anytime from your dashboard Settings. You'll retain Premium access until the end of your billing period, and then your account will revert to Free. Refunds are only available within 14 days of your initial upgrade."
             />
             <FAQItem
               question="What payment methods do you accept?"
@@ -218,7 +218,7 @@ function PricingContent() {
             />
             <FAQItem
               question="Is there a refund policy?"
-              answer="Yes! We offer a 7-day money-back guarantee from the time of your initial upgrade. This applies to first-time Premium subscribers only. See our Refund Policy page for complete details."
+              answer="Yes! We offer a 14-day money-back guarantee from the time of your initial upgrade. This applies to first-time Premium subscribers only. See our Refund Policy page for complete details."
             />
             <FAQItem
               question="What's the difference between Monthly and Yearly?"

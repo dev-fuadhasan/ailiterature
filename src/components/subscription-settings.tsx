@@ -39,7 +39,7 @@ export function SubscriptionSettings({
   const [autoRenewal, setAutoRenewal] = useState(initialAutoRenewal);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Check if within 7 days of subscription start
+  // Check if within 14 days of subscription start
   const canCancel = () => {
     if (!subscriptionStartDate || !isPremium) return false;
     
@@ -47,14 +47,14 @@ export function SubscriptionSettings({
     const now = new Date();
     const daysSinceStart = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
     
-    return daysSinceStart <= 7;
+    return daysSinceStart <= 14;
   };
 
   const handleCancelSubscription = async () => {
     if (!canCancel()) {
       setMessage({
         type: 'error',
-        text: 'Cancellation is only available within 7 days of subscription start.',
+        text: 'Cancellation is only available within 14 days of subscription start.',
       });
       return;
     }
@@ -313,7 +313,7 @@ export function SubscriptionSettings({
                   {canCancel() ? (
                     <>
                       <p className="text-sm text-gray-600 mb-4">
-                        You can cancel your subscription within 7 days of upgrading for a full refund.
+                        You can cancel your subscription within 14 days of upgrading for a full refund.
                       </p>
                       <Button
                         variant="outline"
@@ -328,7 +328,7 @@ export function SubscriptionSettings({
                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                       <p className="text-sm text-yellow-800">
                         <AlertCircle className="h-4 w-4 inline mr-2" />
-                        Cancellation with refund is only available within 7 days of upgrading to Premium.
+                        Cancellation with refund is only available within 14 days of upgrading to Premium.
                       </p>
                     </div>
                   )}

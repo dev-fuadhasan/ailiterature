@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
-    // Check if within 7 days
+    // Check if within 14 days
     const subscriptionStart = (profile as any).subscriptionStartDate;
     if (!subscriptionStart) {
       return NextResponse.json(
@@ -41,9 +41,9 @@ export async function POST(request: NextRequest) {
       (Date.now() - new Date(subscriptionStart).getTime()) / (1000 * 60 * 60 * 24)
     );
 
-    if (daysSinceStart > 7) {
+    if (daysSinceStart > 14) {
       return NextResponse.json(
-        { error: 'Cancellation period has expired (7 days)' },
+        { error: 'Cancellation period has expired (14 days)' },
         { status: 400 }
       );
     }
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
       } as any,
     });
 
-    console.log(`Subscription cancelled for user ${userId} within 7-day window`);
+    console.log(`Subscription cancelled for user ${userId} within 14-day window`);
 
     return NextResponse.json({
       success: true,
