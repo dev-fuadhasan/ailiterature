@@ -44,3 +44,5 @@ next-env.d.ts
 # worker build
 worker/dist/
 worker/node_modules/
+
+.vercel

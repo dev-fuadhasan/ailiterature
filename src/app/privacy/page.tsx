@@ -90,15 +90,6 @@ export default function PrivacyPage() {
               <li><strong>Google OAuth:</strong> For secure user authentication. Google's privacy policy: <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">policies.google.com/privacy</a></li>
               <li><strong>Supabase:</strong> Authentication and database infrastructure. Supabase privacy policy: <a href="https://supabase.com/privacy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">supabase.com/privacy</a></li>
             </ul>
-
-            <h3 className="text-xl font-semibold text-gray-900 mb-3 mt-6">3.2 AI Processing</h3>
-            <ul className="list-disc pl-6 text-gray-700 space-y-2">
-              <li><strong>Groq API:</strong> For fast AI text analysis and extraction. Your paper contents are processed by Groq's AI models.</li>
-              <li><strong>Google Gemini API:</strong> Fallback AI service for text analysis when Groq is unavailable.</li>
-            </ul>
-            <p className="text-gray-700 leading-relaxed mt-4">
-              Paper text is sent to these AI services for analysis. These services may temporarily process but do not permanently store your research content.
-            </p>
           </section>
 
           <section>
