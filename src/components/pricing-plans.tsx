@@ -8,11 +8,19 @@ import { Badge } from "@/components/ui/badge";
 
 interface PricingPlansProps {
   currentPlan?: "FREE" | "PREMIUM";
+  currentPeriod?: "MONTHLY" | "YEARLY" | null;
+  subscriptionStatus?: string;
   onSelectPlan?: (plan: "MONTHLY" | "YEARLY") => void;
   showCurrentBadge?: boolean;
 }
 
-export function PricingPlans({ currentPlan, onSelectPlan, showCurrentBadge = true }: PricingPlansProps) {
+export function PricingPlans({ 
+  currentPlan, 
+  currentPeriod, 
+  subscriptionStatus,
+  onSelectPlan, 
+  showCurrentBadge = true 
+}: PricingPlansProps) {
   const features = {
     free: [
       "3 literature reviews",
@@ -26,13 +34,24 @@ export function PricingPlans({ currentPlan, onSelectPlan, showCurrentBadge = tru
       "AI-powered paper analysis",
       "Export to CSV",
       "Priority support",
-      "Advanced filters",
     ],
   };
 
+  // Determine button states based on subscription
+  const isPremium = currentPlan === "PREMIUM" && subscriptionStatus === "ACTIVE";
+  const isPremiumMonthly = isPremium && currentPeriod === "MONTHLY";
+  const isPremiumYearly = isPremium && currentPeriod === "YEARLY";
+  const isFree = currentPlan === "FREE" || !currentPlan;
+
   const handlePlanClick = (plan: "MONTHLY" | "YEARLY") => {
+    console.log('[PricingPlans] handlePlanClick called with plan:', plan);
+    console.log('[PricingPlans] onSelectPlan exists:', !!onSelectPlan);
+    
     if (onSelectPlan) {
+      console.log('[PricingPlans] Calling onSelectPlan callback...');
       onSelectPlan(plan);
+    } else {
+      console.warn('[PricingPlans] No onSelectPlan callback provided');
     }
   };
 
@@ -43,12 +62,12 @@ export function PricingPlans({ currentPlan, onSelectPlan, showCurrentBadge = tru
         {showCurrentBadge && currentPlan === "FREE" && (
           <Badge className="absolute top-4 right-4 bg-blue-600">Current Plan</Badge>
         )}
-        <h3 className="text-2xl font-bold mb-2">Free</h3>
+        <h3 className="text-2xl font-bold mb-2 text-gray-900">Free</h3>
         <div className="mb-6">
-          <span className="text-4xl font-bold">$0</span>
-          <span className="text-gray-500">/forever</span>
+          <span className="text-4xl font-bold text-gray-900">$0</span>
+          <span className="text-gray-900">/forever</span>
         </div>
-        <p className="text-gray-600 mb-6">Perfect for testing the platform</p>
+        <p className="text-gray-900 mb-6">Perfect for testing the platform</p>
         <ul className="space-y-3 mb-6 flex-grow">
           {features.free.map((feature, idx) => (
             <li key={idx} className="flex items-start gap-2">
@@ -66,7 +85,7 @@ export function PricingPlans({ currentPlan, onSelectPlan, showCurrentBadge = tru
             {currentPlan === "FREE" ? "Current Plan" : "Get Started"}
           </Button>
         ) : (
-          <Link href="/login" className="w-full block">
+          <Link href="/pricing" className="w-full block">
             <Button
               variant="outline"
               className="w-full"
@@ -79,7 +98,7 @@ export function PricingPlans({ currentPlan, onSelectPlan, showCurrentBadge = tru
 
       {/* Premium Monthly */}
       <Card className="p-8 relative border-2 border-blue-600 shadow-lg flex flex-col">
-        {showCurrentBadge && currentPlan === "PREMIUM" && (
+        {showCurrentBadge && isPremiumMonthly && (
           <Badge className="absolute top-4 right-4 bg-blue-600">Current Plan</Badge>
         )}
         <div className="absolute -top-4 left-1/2 -translate-x-1/2">
@@ -88,12 +107,12 @@ export function PricingPlans({ currentPlan, onSelectPlan, showCurrentBadge = tru
             Most Popular
           </Badge>
         </div>
-        <h3 className="text-2xl font-bold mb-2">Premium Monthly</h3>
+        <h3 className="text-2xl font-bold mb-2 text-gray-900">Premium Monthly</h3>
         <div className="mb-6">
-          <span className="text-4xl font-bold">$19</span>
-          <span className="text-gray-500">/month</span>
+          <span className="text-4xl font-bold text-gray-900">$19</span>
+          <span className="text-gray-900">/month</span>
         </div>
-        <p className="text-gray-600 mb-6">For active researchers</p>
+        <p className="text-gray-900 mb-6">For active researchers</p>
         <ul className="space-y-3 mb-6 flex-grow">
           {features.premium.map((feature, idx) => (
             <li key={idx} className="flex items-start gap-2">
@@ -105,13 +124,19 @@ export function PricingPlans({ currentPlan, onSelectPlan, showCurrentBadge = tru
         {onSelectPlan ? (
           <Button
             className="w-full bg-blue-600 hover:bg-blue-700"
-            disabled={currentPlan === "PREMIUM"}
-            onClick={() => handlePlanClick("MONTHLY")}
+            disabled={isPremiumMonthly || isPremiumYearly}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('[PricingPlans] Monthly button clicked');
+              handlePlanClick("MONTHLY");
+            }}
+            type="button"
           >
-            {currentPlan === "PREMIUM" ? "Current Plan" : "Upgrade to Premium"}
+            {isPremiumMonthly ? "Current Plan" : isPremiumYearly ? "Already Premium" : "Upgrade to Premium"}
           </Button>
         ) : (
-          <Link href="/login" className="w-full block">
+          <Link href="/pricing" className="w-full block">
             <Button
               className="w-full bg-blue-600 hover:bg-blue-700"
             >
@@ -123,23 +148,23 @@ export function PricingPlans({ currentPlan, onSelectPlan, showCurrentBadge = tru
 
       {/* Premium Yearly */}
       <Card className="p-8 relative border-2 border-purple-600 flex flex-col">
-        {showCurrentBadge && currentPlan === "PREMIUM" && (
-          <Badge className="absolute top-4 right-4 bg-blue-600">Current Plan</Badge>
+        {showCurrentBadge && isPremiumYearly && (
+          <Badge className="absolute top-4 right-4 bg-purple-600">Current Plan</Badge>
         )}
         <div className="absolute -top-4 left-1/2 -translate-x-1/2">
           <Badge className="bg-purple-600 text-white px-4 py-1">
             Save $79/year
           </Badge>
         </div>
-        <h3 className="text-2xl font-bold mb-2">Premium Yearly</h3>
+        <h3 className="text-2xl font-bold mb-2 text-gray-900">Premium Yearly</h3>
         <div className="mb-2">
-          <span className="text-4xl font-bold">$149</span>
-          <span className="text-gray-500">/year</span>
+          <span className="text-4xl font-bold text-gray-900">$149</span>
+          <span className="text-gray-900">/year</span>
         </div>
         <p className="text-sm text-purple-600 font-semibold mb-4">
           Just $12.42/month
         </p>
-        <p className="text-gray-600 mb-6">Best value for committed users</p>
+        <p className="text-gray-900 mb-6">Best value for committed users</p>
         <ul className="space-y-3 mb-6 flex-grow">
           {features.premium.map((feature, idx) => (
             <li key={idx} className="flex items-start gap-2">
@@ -151,13 +176,19 @@ export function PricingPlans({ currentPlan, onSelectPlan, showCurrentBadge = tru
         {onSelectPlan ? (
           <Button
             className="w-full bg-purple-600 hover:bg-purple-700"
-            disabled={currentPlan === "PREMIUM"}
-            onClick={() => handlePlanClick("YEARLY")}
+            disabled={isPremiumYearly}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('[PricingPlans] Yearly button clicked');
+              handlePlanClick("YEARLY");
+            }}
+            type="button"
           >
-            {currentPlan === "PREMIUM" ? "Current Plan" : "Upgrade to Premium"}
+            {isPremiumYearly ? "Current Plan" : isPremiumMonthly ? "Upgrade to Yearly" : "Upgrade to Premium"}
           </Button>
         ) : (
-          <Link href="/login" className="w-full block">
+          <Link href="/pricing" className="w-full block">
             <Button
               className="w-full bg-purple-600 hover:bg-purple-700"
             >

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Mail, Globe, MessageCircle } from "lucide-react";
+import { Mail, Globe } from "lucide-react";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -33,7 +33,7 @@ export default function ContactPage() {
           Have questions? We're here to help. Reach out to our support team and we'll get back to you as soon as possible.
         </p>
 
-        <div className="grid md:grid-cols-2 gap-8 mb-12">
+        <div className="grid md:grid-cols-1 gap-8 mb-12">
           {/* Email Support */}
           <div className="bg-white rounded-2xl border border-gray-200 p-8 hover:shadow-lg transition-shadow">
             <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mb-6">
@@ -48,23 +48,6 @@ export default function ContactPage() {
               className="text-blue-600 hover:text-blue-700 font-semibold text-lg hover:underline"
             >
               support@researchroomai.com
-            </a>
-          </div>
-
-          {/* General Inquiries */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-8 hover:shadow-lg transition-shadow">
-            <div className="w-14 h-14 bg-purple-100 rounded-full flex items-center justify-center mb-6">
-              <MessageCircle className="h-7 w-7 text-purple-600" />
-            </div>
-            <h2 className="text-2xl font-semibold text-gray-900 mb-3">General Inquiries</h2>
-            <p className="text-gray-600 mb-6">
-              For partnerships, press, or other business inquiries.
-            </p>
-            <a 
-              href="mailto:hello@researchroomai.com" 
-              className="text-purple-600 hover:text-purple-700 font-semibold text-lg hover:underline"
-            >
-              hello@researchroomai.com
             </a>
           </div>
         </div>

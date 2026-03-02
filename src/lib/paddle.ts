@@ -36,33 +36,38 @@ export type PaddleCheckoutOptions = {
  * Call this in your app before using Paddle checkout
  */
 export function initializePaddle() {
-  const clientToken = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN;
-  const environment = process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT as
-    | 'sandbox'
-    | 'production';
+  const clientToken = process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN?.trim();
+  const environment = (process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT?.trim() || 'sandbox') as 'sandbox' | 'production';
 
   console.log('[Paddle] Initializing...', {
     hasClientToken: !!clientToken,
+    clientTokenPreview: clientToken ? clientToken.substring(0, 10) + '...' : 'not set',
     environment,
     hasPaddleObject: !!window.Paddle,
+    hasPaddleEnvironment: !!(window.Paddle?.Environment),
+    hasPaddleInitialize: !!(window.Paddle?.Initialize),
   });
 
   if (!clientToken) {
     console.error('[Paddle] Client token not configured');
+    console.error('[Paddle] Make sure NEXT_PUBLIC_PADDLE_CLIENT_TOKEN is set in environment variables');
     alert('Payment system configuration error. Please contact support.');
     return false;
   }
 
   if (!window.Paddle) {
     console.error('[Paddle] Paddle object not found on window');
+    console.error('[Paddle] Make sure Paddle.js script is loaded from CDN');
     return false;
   }
 
   try {
-    // Set environment (sandbox or production)
-    if (window.Paddle.Environment) {
-      window.Paddle.Environment.set(environment || 'sandbox');
-      console.log('[Paddle] Environment set to:', environment || 'sandbox');
+    // IMPORTANT: Set environment BEFORE initializing (per Paddle docs)
+    if (window.Paddle.Environment && window.Paddle.Environment.set) {
+      window.Paddle.Environment.set(environment);
+      console.log('[Paddle] ✓ Environment set to:', environment);
+    } else {
+      console.warn('[Paddle] Environment.set not available');
     }
 
     // Initialize Paddle
@@ -71,14 +76,20 @@ export function initializePaddle() {
         token: clientToken,
         eventCallback: (data) => {
           console.log('[Paddle] Event received:', data);
-          if (data.name === 'checkout.completed') {
-            console.log('[Paddle] Checkout completed successfully');
+          
+          if (data.name === 'checkout.loaded') {
+            console.log('[Paddle] ✓ Checkout modal opened');
+          } else if (data.name === 'checkout.completed') {
+            console.log('[Paddle] ✓ Checkout completed successfully');
+            // Redirect is handled by successUrl in checkout config
           } else if (data.name === 'checkout.closed') {
-            console.log('[Paddle] Checkout was closed');
+            console.log('[Paddle] Checkout was closed by user');
+          } else if (data.name === 'checkout.error') {
+            console.error('[Paddle] Checkout error:', data);
           }
         },
       });
-      console.log('[Paddle] Initialized successfully');
+      console.log('[Paddle] ✓ Initialized successfully');
       return true;
     } else {
       console.error('[Paddle] Initialize method not available');
@@ -86,6 +97,7 @@ export function initializePaddle() {
     }
   } catch (error) {
     console.error('[Paddle] Initialization error:', error);
+    alert('Failed to initialize payment system. Please refresh the page.');
     return false;
   }
 }
@@ -96,28 +108,38 @@ export function initializePaddle() {
 export function openPaddleCheckout(options: PaddleCheckoutOptions) {
   const { priceId, userId, userEmail, successUrl, cancelUrl } = options;
 
-  console.log('[Paddle] Opening checkout with options:', {
+  console.log('[Paddle] === OPENING CHECKOUT ===');
+  console.log('[Paddle] Options:', {
     priceId,
     userId,
     userEmail,
+  });
+  console.log('[Paddle] System check:', {
     hasPaddle: !!window.Paddle,
     hasCheckout: !!(window.Paddle?.Checkout),
+    hasCheckoutOpen: !!(window.Paddle?.Checkout?.open),
   });
 
   if (!window.Paddle) {
-    console.error('[Paddle] Paddle object not available');
+    console.error('[Paddle] ✗ Paddle object not available on window');
     alert('Payment system not loaded. Please refresh the page and try again.');
     return;
   }
 
   if (!window.Paddle.Checkout) {
-    console.error('[Paddle] Paddle.Checkout not available');
+    console.error('[Paddle] ✗ Paddle.Checkout not available');
     alert('Payment checkout not available. Please refresh the page and try again.');
     return;
   }
 
+  if (!window.Paddle.Checkout.open) {
+    console.error('[Paddle] ✗ Paddle.Checkout.open method not available');
+    alert('Payment checkout method not available. Please refresh the page.');
+    return;
+  }
+
   if (!priceId) {
-    console.error('[Paddle] No price ID provided');
+    console.error('[Paddle] ✗ No price ID provided');
     alert('Payment configuration error. Please contact support.');
     return;
   }
@@ -132,18 +154,27 @@ export function openPaddleCheckout(options: PaddleCheckoutOptions) {
       user_id: userId,
     },
     customer: userEmail ? { email: userEmail } : undefined,
-    successUrl: successUrl || defaultSuccessUrl,
+    settings: {
+      successUrl: successUrl || defaultSuccessUrl,
+      displayMode: 'overlay' as const,
+      theme: 'light' as const,
+      locale: 'en' as const,
+    },
   };
 
-  console.log('[Paddle] Checkout config:', checkoutConfig);
+  console.log('[Paddle] Full checkout configuration:', JSON.stringify(checkoutConfig, null, 2));
 
   try {
-    // Open checkout
+    console.log('[Paddle] Calling Paddle.Checkout.open()...');
     window.Paddle.Checkout.open(checkoutConfig);
-    console.log('[Paddle] Checkout opened successfully');
+    console.log('[Paddle] ✓ Checkout.open() called successfully - checkout modal should appear');
   } catch (error) {
-    console.error('[Paddle] Error opening checkout:', error);
-    alert('Failed to open payment checkout. Please try again or contact support.');
+    console.error('[Paddle] ✗ Error opening checkout:', error);
+    if (error instanceof Error) {
+      console.error('[Paddle] Error message:', error.message);
+      console.error('[Paddle] Error stack:', error.stack);
+    }
+    alert(`Failed to open payment checkout: ${error instanceof Error ? error.message : 'Unknown error'}\n\nPlease try again or contact support.`);
   }
 }
 
@@ -216,8 +247,8 @@ export function loadPaddleScript(): Promise<void> {
  * Get price IDs from environment
  */
 export function getPaddlePriceIds() {
-  const monthly = process.env.NEXT_PUBLIC_PADDLE_MONTHLY_PRICE_ID || '';
-  const yearly = process.env.NEXT_PUBLIC_PADDLE_YEARLY_PRICE_ID || '';
+  const monthly = (process.env.NEXT_PUBLIC_PADDLE_MONTHLY_PRICE_ID || '').trim();
+  const yearly = (process.env.NEXT_PUBLIC_PADDLE_YEARLY_PRICE_ID || '').trim();
   
   console.log('[Paddle] Price IDs from environment:', {
     monthly,

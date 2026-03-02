@@ -57,6 +57,12 @@ model Profile {
   trialEndDate           DateTime?           @map("trial_end_date")
   subscriptionStartDate  DateTime?           @map("subscription_start_date")
   subscriptionEndDate    DateTime?           @map("subscription_end_date")
+  paymentMethodId        String?             @map("payment_method_id")
+  cardLast4              String?             @map("card_last4")
+  cardType               String?             @map("card_type")
+  cardExpiryMonth        Int?                @map("card_expiry_month")
+  cardExpiryYear         Int?                @map("card_expiry_year")
+  autoRenewal            Boolean             @default(true) @map("auto_renewal")
   createdAt              DateTime            @default(now()) @map("created_at")
   updatedAt              DateTime            @updatedAt @map("updated_at")
 

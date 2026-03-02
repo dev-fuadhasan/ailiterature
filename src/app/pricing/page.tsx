@@ -12,6 +12,8 @@ import { createClient } from "@/lib/supabase/client";
 
 type UserProfile = {
   planType: "FREE" | "PREMIUM";
+  planPeriod?: "MONTHLY" | "YEARLY" | null;
+  subscriptionStatus?: string;
   userId: string;
   email?: string;
 };
@@ -83,7 +85,7 @@ function PricingContent() {
 
     if (!profile?.userId) {
       console.error("No userId in profile, redirecting to login");
-      window.location.href = "/login";
+      window.location.href = "/login?redirect=/pricing";
       return;
     }
 
@@ -191,6 +193,8 @@ function PricingContent() {
         ) : (
           <PricingPlans
             currentPlan={profile?.planType}
+            currentPeriod={profile?.planPeriod}
+            subscriptionStatus={profile?.subscriptionStatus}
             onSelectPlan={handleSelectPlan}
             showCurrentBadge={true}
           />
@@ -198,7 +202,7 @@ function PricingContent() {
 
         {/* FAQ Section */}
         <div className="mt-24 max-w-3xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12">Frequently Asked Questions</h2>
+          <h2 className="text-3xl font-bold text-center mb-12 text-gray-900">Frequently Asked Questions</h2>
           <div className="space-y-6">
             <FAQItem
               question="What happens after my free trial?"
@@ -206,7 +210,7 @@ function PricingContent() {
             />
             <FAQItem
               question="Can I cancel my Premium subscription anytime?"
-              answer="Yes! You can cancel anytime from your dashboard. You'll retain Premium access until the end of your billing period, and then your account will revert to Free."
+              answer="Yes! You can cancel anytime from your dashboard Settings. You'll retain Premium access until the end of your billing period, and then your account will revert to Free. Refunds are only available within 7 days of your initial upgrade."
             />
             <FAQItem
               question="What payment methods do you accept?"
@@ -214,7 +218,7 @@ function PricingContent() {
             />
             <FAQItem
               question="Is there a refund policy?"
-              answer="Yes! We offer a 7-day money-back guarantee for first-time Premium subscribers. See our Refund Policy for details."
+              answer="Yes! We offer a 7-day money-back guarantee from the time of your initial upgrade. This applies to first-time Premium subscribers only. See our Refund Policy page for complete details."
             />
             <FAQItem
               question="What's the difference between Monthly and Yearly?"

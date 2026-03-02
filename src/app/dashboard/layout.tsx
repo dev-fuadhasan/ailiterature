@@ -2,9 +2,12 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { LayoutDashboard, PlusCircle, LogOut } from "lucide-react";
+import { LayoutDashboard, PlusCircle, LogOut, Crown, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Metadata } from "next";
+import prisma from "@/lib/prisma";
+import { SubscriptionSettings } from "@/components/subscription-settings";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -24,6 +27,34 @@ export default async function DashboardLayout({
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) redirect("/login");
+
+  // Fetch profile to get plan information
+  let profile;
+  try {
+    profile = await prisma.profile.findUnique({
+      where: { userId: user.id },
+      select: {
+        planType: true,
+        planPeriod: true,
+        subscriptionStatus: true,
+        subscriptionStartDate: true,
+        subscriptionId: true,
+        paymentMethodId: true,
+        cardLast4: true,
+        cardType: true,
+        cardExpiryMonth: true,
+        cardExpiryYear: true,
+        autoRenewal: true,
+      }
+    });
+  } catch (error) {
+    console.error("Failed to fetch profile:", error);
+  }
+
+  const planType = (profile as any)?.planType || "FREE";
+  const planPeriod = (profile as any)?.planPeriod;
+  const subscriptionStatus = (profile as any)?.subscriptionStatus;
+  const isPremium = planType === "PREMIUM" && subscriptionStatus === "ACTIVE";
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -77,8 +108,40 @@ export default async function DashboardLayout({
                 </p>
               )}
               <p className="text-xs text-gray-500 truncate leading-tight">{user.email}</p>
+              
+              {/* Plan Badge */}
+              <div className="mt-1.5">
+                {isPremium ? (
+                  <Badge className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white border-0 text-[10px] py-0 px-1.5 h-5">
+                    <Crown className="h-3 w-3 mr-1" />
+                    Premium {planPeriod === "YEARLY" ? "Yearly" : "Monthly"}
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-gray-600 border-gray-300 text-[10px] py-0 px-1.5 h-5">
+                    <Zap className="h-3 w-3 mr-1" />
+                    Free Plan
+                  </Badge>
+                )}
+              </div>
             </div>
           </div>
+          
+          {/* Settings Button (for premium users) */}
+          <SubscriptionSettings
+            userId={user.id}
+            email={user.email || ''}
+            subscriptionStartDate={(profile as any)?.subscriptionStartDate || null}
+            subscriptionId={(profile as any)?.subscriptionId || null}
+            planPeriod={(profile as any)?.planPeriod || null}
+            isPremium={isPremium}
+            paymentMethodId={(profile as any)?.paymentMethodId || null}
+            cardLast4={(profile as any)?.cardLast4 || null}
+            cardType={(profile as any)?.cardType || null}
+            cardExpiryMonth={(profile as any)?.cardExpiryMonth || null}
+            cardExpiryYear={(profile as any)?.cardExpiryYear || null}
+            autoRenewal={(profile as any)?.autoRenewal ?? true}
+          />
+          
           <form action="/auth/signout" method="post">
             <Button
               variant="ghost"

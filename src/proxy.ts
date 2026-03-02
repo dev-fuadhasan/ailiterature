@@ -18,14 +18,19 @@ export async function proxy(request: NextRequest) {
   response.headers.delete("Server");
 
   // Content Security Policy - prevents loading external scripts that could steal data
+  // Updated to allow Paddle.com payment integration
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'unsafe-eval' 'unsafe-inline';
-    style-src 'self' 'unsafe-inline';
-    img-src 'self' blob: data:;
+    script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.paddle.com https://cdn.paddle-dev.com;
+    script-src-elem 'self' 'unsafe-inline' https://cdn.paddle.com https://cdn.paddle-dev.com;
+    style-src 'self' 'unsafe-inline' https://cdn.paddle.com https://sandbox-cdn.paddle.com;
+    style-src-elem 'self' 'unsafe-inline' https://cdn.paddle.com https://sandbox-cdn.paddle.com;
+    img-src 'self' blob: data: https:;
     font-src 'self' data:;
-    connect-src 'self' https://researchroomai.com https://*.supabase.co;
+    connect-src 'self' https://*.supabase.co https://cdn.paddle.com https://cdn.paddle-dev.com https://sandbox-api.paddle.com https://api.paddle.com wss://*.supabase.co;
+    frame-src 'self' https://cdn.paddle.com https://sandbox-checkout.paddle.com https://checkout.paddle.com https://sandbox-buy.paddle.com https://buy.paddle.com;
     frame-ancestors 'none';
+    object-src 'none';
   `.replace(/\s{2,}/g, ' ').trim();
   
   response.headers.set("Content-Security-Policy", cspHeader);

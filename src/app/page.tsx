@@ -2,7 +2,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { AvatarCircles } from "@/components/ui/avatar-circles";
 import { HeroForm } from "@/components/hero-form";
 import { PricingPlans } from "@/components/pricing-plans";
 import { createClient } from "@/lib/supabase/server";
@@ -84,7 +83,7 @@ export default async function LandingPage() {
                 AI-powered <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">literature reviews.</span>
               </h1>
               <p className="text-lg md:text-xl text-gray-500 mb-10 leading-relaxed max-w-xl mx-auto lg:mx-0">
-                ResearchRoom AI automates your literature review process. Enter your research topic to instantly find, download, and extract key insights from millions of academic research papers into a structured, exportable table.
+                Research Room AI automates your literature review process. Enter your research topic to instantly find, download, and extract key insights from millions of academic research papers into a structured, exportable table.
               </p>
               
               {/* Alternative CTAs for mobile/non-form users */}
@@ -109,23 +108,6 @@ export default async function LandingPage() {
                     </Link>
                   </>
                 )}
-              </div>
-
-              {/* Trust indicators: Avatar circles */}
-              <div className="flex flex-col items-center lg:items-start justify-center gap-3">
-                <AvatarCircles 
-                  numPeople={999}
-                  avatarUrls={[
-                    "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=100&h=100&fit=crop&crop=faces&auto=format&q=80",
-                    "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=faces&auto=format&q=80",
-                    "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&h=100&fit=crop&crop=faces&auto=format&q=80",
-                    "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&h=100&fit=crop&crop=faces&auto=format&q=80"
-                  ]}
-                  className="transform scale-110"
-                />
-                <p className="text-sm font-medium text-gray-600">
-                  Trusted by <span className="font-semibold text-gray-900">1,000+ researchers</span> globally
-                </p>
               </div>
             </div>
 

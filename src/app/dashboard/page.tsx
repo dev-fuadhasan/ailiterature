@@ -50,17 +50,23 @@ function DashboardContent() {
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [paymentMessage, setPaymentMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [pollingForPremium, setPollingForPremium] = useState(false);
   
   const searchParams = useSearchParams();
 
-  // Handle payment redirect messages
+  // Handle payment redirect messages with polling for webhook completion
   useEffect(() => {
     const payment = searchParams.get("payment");
     if (payment === "success") {
       setPaymentMessage({
         type: "success",
-        text: "🎉 Payment successful! Your Premium plan is now active.",
+        text: "🎉 Payment successful! Processing your subscription...",
       });
+      
+      // Start polling for premium status
+      setPollingForPremium(true);
+      pollForPremiumStatus();
+      
       // Clear the URL parameter
       window.history.replaceState({}, "", "/dashboard");
     } else if (payment === "cancelled") {
@@ -71,6 +77,54 @@ function DashboardContent() {
       window.history.replaceState({}, "", "/dashboard");
     }
   }, [searchParams]);
+
+  // Poll for premium status after payment (webhook might take a few seconds)
+  async function pollForPremiumStatus() {
+    let attempts = 0;
+    const maxAttempts = 10; // Poll for up to 20 seconds (10 x 2s)
+    
+    const poll = async () => {
+      attempts++;
+      
+      try {
+        const res = await fetch("/api/profile");
+        if (res.ok) {
+          const data = await res.json();
+          setProfile(data);
+          
+          // Check if premium is active
+          if (data.planType === "PREMIUM" && data.subscriptionStatus === "ACTIVE") {
+            setPollingForPremium(false);
+            setPaymentMessage({
+              type: "success",
+              text: "🎉 Payment successful! Your Premium plan is now active.",
+            });
+            
+            // Refresh the page to update sidebar badge
+            window.location.reload();
+            return;
+          }
+        }
+      } catch (error) {
+        console.error("Polling error:", error);
+      }
+      
+      // Continue polling if not premium yet and haven't exceeded max attempts
+      if (attempts < maxAttempts) {
+        setTimeout(poll, 2000); // Poll every 2 seconds
+      } else {
+        setPollingForPremium(false);
+        setPaymentMessage({
+          type: "success",
+          text: "🎉 Payment successful! Your plan will be activated shortly.",
+        });
+        // Refresh anyway after timeout
+        setTimeout(() => window.location.reload(), 2000);
+      }
+    };
+    
+    poll();
+  }
 
   async function fetchProjects() {
     try {
@@ -158,8 +212,8 @@ function DashboardContent() {
         </div>
       )}
 
-      {/* Plan Status */}
-      {profile && (
+      {/* Plan Status - Hide for yearly premium users */}
+      {profile && !(profile.planType === "PREMIUM" && profile.planPeriod === "YEARLY" && profile.subscriptionStatus === "ACTIVE") && (
         <div className="mb-8">
           <PlanStatus
             planType={profile.planType}

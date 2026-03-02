@@ -34,10 +34,14 @@ export default function LoginPage() {
     setGoogleLoading(true);
     setError("");
     try {
+      // Get redirect parameter if present
+      const params = new URLSearchParams(window.location.search);
+      const redirectPath = params.get("redirect") || "/dashboard";
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: { 
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(redirectPath)}`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',

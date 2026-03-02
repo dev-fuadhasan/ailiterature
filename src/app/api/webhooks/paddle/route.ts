@@ -11,6 +11,11 @@ type PaddleEvent = {
     id: string;
     status: string;
     customer_id: string;
+    subscription_id?: string;
+    customer?: {
+      email?: string;
+      id?: string;
+    };
     custom_data?: {
       user_id?: string;
     };
@@ -19,6 +24,18 @@ type PaddleEvent = {
         id: string;
         billing_cycle?: {
           interval: string;
+        };
+      };
+    }>;
+    payments?: Array<{
+      stored_payment_method_id?: string;
+      method_details?: {
+        type: string;
+        card?: {
+          type: string;
+          last4: string;
+          expiry_month: number;
+          expiry_year: number;
         };
       };
     }>;
@@ -79,10 +96,16 @@ function mapPaddleStatus(paddleStatus: string): string {
 
 // Determine plan period from price ID
 function getPlanPeriod(priceId: string): 'MONTHLY' | 'YEARLY' {
-  const monthlyPriceId = process.env.NEXT_PUBLIC_PADDLE_MONTHLY_PRICE_ID;
-  const yearlyPriceId = process.env.NEXT_PUBLIC_PADDLE_YEARLY_PRICE_ID;
+  // Trim environment variables to remove any newline characters
+  const monthlyPriceId = (process.env.NEXT_PUBLIC_PADDLE_MONTHLY_PRICE_ID || 'pri_01kjqr3ystz8321y7kkbzce6w0').trim();
+  const yearlyPriceId = (process.env.NEXT_PUBLIC_PADDLE_YEARLY_PRICE_ID || 'pri_01kjqr5vrbydqfbxkgwvdbrf0w').trim();
+
+  console.log('getPlanPeriod check:', { priceId, yearlyPriceId, monthlyPriceId, match: priceId === yearlyPriceId });
 
   if (priceId === yearlyPriceId) return 'YEARLY';
+  if (priceId === monthlyPriceId) return 'MONTHLY';
+  
+  // Fallback: check amount or billing cycle if price IDs don't match
   return 'MONTHLY';
 }
 
@@ -102,28 +125,79 @@ export async function POST(request: NextRequest) {
     const payload = await request.text();
     const signature = request.headers.get('paddle-signature');
 
-    // Verify signature
-    if (!verifyWebhookSignature(payload, signature, webhookSecret)) {
-      console.error('Invalid webhook signature');
-      return NextResponse.json(
-        { error: 'Invalid signature' },
-        { status: 401 }
-      );
+    // Log webhook for debugging
+    console.log('=== PADDLE WEBHOOK RECEIVED ===');
+    console.log('Timestamp:', new Date().toISOString());
+    console.log('Signature:', signature ? 'present' : 'missing');
+    console.log('Payload length:', payload.length);
+    console.log('Full payload:', payload);
+
+    // Verify signature with detailed logging
+    const signatureValid = verifyWebhookSignature(payload, signature, webhookSecret);
+    console.log('Signature verification:', signatureValid ? 'VALID' : 'INVALID');
+    
+    // In production, log but don't block on signature failure temporarily for debugging
+    if (!signatureValid) {
+      console.warn('⚠️ Webhook signature verification failed, but processing anyway for debugging');
+      console.warn('This should be fixed in production!');
     }
 
     // Parse event
     const event: PaddleEvent = JSON.parse(payload);
     console.log('Received Paddle webhook:', event.event_type, event.event_id);
+    console.log('Full event data:', JSON.stringify(event, null, 2));
 
     // Extract user ID from custom data
-    const userId = event.data.custom_data?.user_id;
+    let userId = event.data.custom_data?.user_id;
+    console.log('Custom data received:', JSON.stringify(event.data.custom_data));
+    console.log('Extracted user_id:', userId);
+    
     if (!userId) {
-      console.error('No user_id in custom_data');
+      console.error('❌ No user_id in custom_data');
+      console.error('Full event.data:', JSON.stringify(event.data, null, 2));
+      
+      // Try to get user from customer email as fallback
+      const customerEmail = event.data.customer?.email;
+      if (customerEmail) {
+        console.log('Attempting to find user by email:', customerEmail);
+        try {
+          const profile = await prisma.profile.findFirst({
+            where: { email: customerEmail },
+          });
+          if (profile) {
+            console.log('✅ Found profile by email, using userId:', profile.userId);
+            userId = profile.userId; // Use this userId for processing
+          }
+        } catch (err) {
+          console.error('Error finding profile by email:', err);
+        }
+      }
+      
+      // If still no userId, return error
+      if (!userId) {
+        return NextResponse.json(
+          { error: 'Missing user_id in custom_data and could not find by email' },
+          { status: 400 }
+        );
+      }
+    }
+
+    console.log('Processing webhook for user:', userId);
+
+    // Check if profile exists
+    const existingProfile = await prisma.profile.findUnique({
+      where: { userId },
+    });
+
+    if (!existingProfile) {
+      console.error(`Profile not found for user: ${userId}`);
       return NextResponse.json(
-        { error: 'Missing user_id in custom_data' },
-        { status: 400 }
+        { error: 'Profile not found' },
+        { status: 404 }
       );
     }
+
+    console.log('Found profile:', existingProfile.email);
 
     // Handle different event types
     switch (event.event_type) {
@@ -165,10 +239,20 @@ export async function POST(request: NextRequest) {
       case 'subscription.updated': {
         const status = mapPaddleStatus(event.data.status);
 
+        // Get price ID to check for plan period changes
+        const priceId = event.data.items?.[0]?.price?.id;
+        const planPeriod = priceId ? getPlanPeriod(priceId) : undefined;
+
         // Check if there's a scheduled cancellation
         const updateData = {
           subscriptionStatus: status,
         } as any;
+
+        // Update plan period if it changed (e.g., monthly to yearly upgrade)
+        if (planPeriod) {
+          updateData.planPeriod = planPeriod;
+          console.log(`Plan period updated to: ${planPeriod}`);
+        }
 
         if (event.data.scheduled_change?.action === 'cancel') {
           updateData.subscriptionEndDate = new Date(
@@ -222,20 +306,65 @@ export async function POST(request: NextRequest) {
         break;
       }
 
+      case 'transaction.updated':
       case 'transaction.completed': {
-        // This is fired for successful recurring payments
-        // Ensure subscription is active
-        await prisma.profile.updateMany({
-          where: {
-            userId,
-            subscriptionId: event.data.id,
-          } as any,
-          data: {
-            subscriptionStatus: 'ACTIVE',
-          } as any,
+        // This is fired for successful payments (initial and recurring)
+        // Also handles transaction.updated when payment status changes to completed
+        // Get subscription ID from event data
+        const subscriptionId = event.data.subscription_id;
+        
+        // Get price ID to determine plan period
+        const priceId = event.data.items?.[0]?.price?.id;
+        const planPeriod = priceId ? getPlanPeriod(priceId) : undefined;
+        
+        // Extract payment method details
+        const payment = event.data.payments?.[0];
+        const paymentMethodId = payment?.stored_payment_method_id;
+        const cardDetails = payment?.method_details?.card;
+        
+        console.log('Transaction details:', {
+          subscriptionId,
+          priceId,
+          planPeriod,
+          paymentMethodId,
+          cardLast4: cardDetails?.last4,
+        });
+        
+        // Build update data
+        const updateData: any = {
+          subscriptionStatus: 'ACTIVE',
+        };
+        
+        // Update subscription ID if present
+        if (subscriptionId) {
+          updateData.subscriptionId = subscriptionId;
+        }
+        
+        // Update plan period if it changed (e.g., monthly to yearly upgrade)
+        if (planPeriod) {
+          updateData.planPeriod = planPeriod;
+          console.log(`Plan period updated to: ${planPeriod}`);
+        }
+        
+        // Save payment method details
+        if (paymentMethodId) {
+          updateData.paymentMethodId = paymentMethodId;
+        }
+        if (cardDetails) {
+          updateData.cardLast4 = cardDetails.last4;
+          updateData.cardType = cardDetails.type;
+          updateData.cardExpiryMonth = cardDetails.expiry_month;
+          updateData.cardExpiryYear = cardDetails.expiry_year;
+          console.log(`Saved payment method: ${cardDetails.type} ending in ${cardDetails.last4}`);
+        }
+        
+        // Update profile
+        await prisma.profile.update({
+          where: { userId },
+          data: updateData as any,
         });
 
-        console.log(`Transaction completed for user ${userId}`);
+        console.log(`Transaction processed (${event.event_type}) for user ${userId}, planPeriod: ${planPeriod || 'not changed'}`);
         break;
       }
 

@@ -7,6 +7,7 @@ export async function GET(request: Request) {
   const code = searchParams.get("code");
   const error_code = searchParams.get("error");
   const error_description = searchParams.get("error_description");
+  const redirectPath = searchParams.get("redirect") || "/dashboard";
 
   // Handle OAuth errors
   if (error_code) {
@@ -54,7 +55,7 @@ export async function GET(request: Request) {
       // Continue anyway - user is authenticated
     }
 
-    return NextResponse.redirect(`${origin}/dashboard`);
+    return NextResponse.redirect(`${origin}${redirectPath}`);
   } catch (error) {
     console.error("Callback error:", error);
     return NextResponse.redirect(`${origin}/login?error=unknown`);
