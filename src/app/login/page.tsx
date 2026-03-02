@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
@@ -14,15 +14,43 @@ export default function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Check for error from callback
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const errorParam = params.get("error");
+    if (errorParam) {
+      const errorMessages: Record<string, string> = {
+        auth_failed: "Authentication failed. Please try again.",
+        no_code: "No authorization code received. Please try again.",
+        session_error: "Failed to create session. Please try again.",
+        no_user: "User data not received. Please try again.",
+        unknown: "An unexpected error occurred. Please try again.",
+      };
+      setError(errorMessages[errorParam] || "Authentication error. Please try again.");
+    }
+  }, []);
+
   async function handleGoogleLogin() {
     setGoogleLoading(true);
     setError("");
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    });
-    if (error) {
-      setError(error.message);
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { 
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      });
+      if (error) {
+        setError(error.message);
+        setGoogleLoading(false);
+      }
+    } catch (err) {
+      console.error("Login error:", err);
+      setError("Failed to initiate Google sign-in. Please try again.");
       setGoogleLoading(false);
     }
   }

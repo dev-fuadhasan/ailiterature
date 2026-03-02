@@ -42,10 +42,19 @@ function PricingContent() {
           const supabase = createClient();
           const { data: { user } } = await supabase.auth.getUser();
           
+          if (!user) {
+            console.log("No user logged in, redirecting to login");
+            window.location.href = "/login";
+            return;
+          }
+          
           setProfile({
             ...data,
             email: user?.email,
           });
+        } else if (res.status === 401) {
+          console.log("Unauthorized, redirecting to login");
+          window.location.href = "/login";
         }
       } catch (error) {
         console.error("Failed to fetch profile:", error);
@@ -57,23 +66,42 @@ function PricingContent() {
   }, []);
 
   function handleSelectPlan(plan: "MONTHLY" | "YEARLY") {
+    console.log("handleSelectPlan called with plan:", plan);
+    console.log("Paddle loaded:", isLoaded);
+    console.log("Profile:", profile);
+    console.log("Price IDs:", priceIds);
+    
     if (!isLoaded) {
       alert("Payment system is loading, please try again in a moment.");
       return;
     }
 
     if (!profile?.userId) {
-      alert("Please sign in to upgrade your plan.");
+      console.error("No userId in profile, redirecting to login");
+      window.location.href = "/login";
       return;
     }
 
     const priceId = plan === "MONTHLY" ? priceIds.monthly : priceIds.yearly;
     
-    openCheckout({
-      priceId,
-      userId: profile.userId,
-      userEmail: profile.email,
-    });
+    if (!priceId) {
+      console.error("Price ID not found for plan:", plan);
+      alert("Payment configuration error. Please contact support.");
+      return;
+    }
+    
+    console.log("Opening checkout with priceId:", priceId);
+    
+    try {
+      openCheckout({
+        priceId,
+        userId: profile.userId,
+        userEmail: profile.email,
+      });
+    } catch (error) {
+      console.error("Error opening checkout:", error);
+      alert("Failed to open payment checkout. Please try again.");
+    }
   }
 
   return (
