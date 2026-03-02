@@ -279,21 +279,108 @@ export default async function LandingPage() {
 
       {/* Footer */}
       <footer className="border-t border-gray-200 mt-10 bg-white">
-        <div className="max-w-6xl mx-auto px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-gray-500">
-          <Link href="/" className="hover:opacity-80 transition-opacity">
-            <Image 
-              src="/logo.png" 
-              alt="ResearchRoom AI Logo" 
-              width={100} 
-              height={100}
-              className="object-contain"
-            />
-          </Link>
-          <div className="flex items-center gap-2">
-            <Globe className="h-4 w-4 text-gray-400" />
-            <span>Searching 250M+ academic papers globally</span>
+        <div className="max-w-7xl mx-auto px-6 py-12">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+            {/* Brand */}
+            <div className="col-span-1">
+              <Link href="/" className="inline-block mb-4">
+                <Image 
+                  src="/logo.png" 
+                  alt="Research Room AI Logo" 
+                  width={100} 
+                  height={100}
+                  className="object-contain"
+                />
+              </Link>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                AI-powered literature review automation for researchers worldwide.
+              </p>
+            </div>
+
+            {/* Product */}
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-4">Product</h3>
+              <ul className="space-y-3 text-sm text-gray-600">
+                <li>
+                  <Link href="/#how-it-works" className="hover:text-blue-600 transition-colors">
+                    How It Works
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/dashboard" className="hover:text-blue-600 transition-colors">
+                    Dashboard
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/login" className="hover:text-blue-600 transition-colors">
+                    Sign In
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Legal */}
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-4">Legal</h3>
+              <ul className="space-y-3 text-sm text-gray-600">
+                <li>
+                  <Link href="/terms" className="hover:text-blue-600 transition-colors">
+                    Terms of Service
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/privacy" className="hover:text-blue-600 transition-colors">
+                    Privacy Policy
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/refund" className="hover:text-blue-600 transition-colors">
+                    Refund Policy
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Support */}
+            <div>
+              <h3 className="font-semibold text-gray-900 mb-4">Support</h3>
+              <ul className="space-y-3 text-sm text-gray-600">
+                <li>
+                  <Link href="/contact" className="hover:text-blue-600 transition-colors">
+                    Contact Us
+                  </Link>
+                </li>
+                <li>
+                  <a href="mailto:support@researchroomai.com" className="hover:text-blue-600 transition-colors">
+                    support@researchroomai.com
+                  </a>
+                </li>
+                <li className="flex items-center gap-2 text-gray-500">
+                  <Globe className="h-4 w-4" />
+                  <span>250M+ papers</span>
+                </li>
+              </ul>
+            </div>
           </div>
-          <span>&copy; {new Date().getFullYear()} ResearchRoom AI. All rights reserved.</span>
+
+          {/* Bottom Bar */}
+          <div className="pt-8 border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-gray-500">
+            <span>&copy; {new Date().getFullYear()} Research Room AI. All rights reserved.</span>
+            <div className="flex items-center gap-6">
+              <Link href="/terms" className="hover:text-gray-700 transition-colors">
+                Terms
+              </Link>
+              <Link href="/privacy" className="hover:text-gray-700 transition-colors">
+                Privacy
+              </Link>
+              <Link href="/refund" className="hover:text-gray-700 transition-colors">
+                Refund
+              </Link>
+              <Link href="/contact" className="hover:text-gray-700 transition-colors">
+                Contact
+              </Link>
+            </div>
+          </div>
         </div>
       </footer>
     </div>
