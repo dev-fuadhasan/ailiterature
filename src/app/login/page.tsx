@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,13 +32,15 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex justify-center mb-8">
-          <Image 
-            src="/logo.png" 
-            alt="ResearchRoom AI Logo" 
-            width={140} 
-            height={140}
-            className="object-contain"
-          />
+          <Link href="/" className="inline-block">
+            <Image 
+              src="/logo.png" 
+              alt="Research Room AI Logo" 
+              width={140} 
+              height={140}
+              className="object-contain"
+            />
+          </Link>
         </div>
 
         <Card>

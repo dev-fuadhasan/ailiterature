@@ -31,7 +31,7 @@ export default async function DashboardLayout({
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col fixed h-full">
         {/* Logo */}
         <div className="p-6 border-b border-gray-100">
-          <Link href="/dashboard" className="inline-block">
+          <Link href="/" className="inline-block">
             <Image 
               src="/logo.png" 
               alt="Research Room AI Logo" 

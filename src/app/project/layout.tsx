@@ -27,10 +27,10 @@ export default async function ProjectLayout({
     <div className="min-h-screen bg-gray-50 flex">
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col fixed h-full">
         <div className="p-6 border-b border-gray-100">
-          <Link href="/dashboard" className="inline-block">
+          <Link href="/" className="inline-block">
             <Image 
               src="/logo.png" 
-              alt="ResearchRoom AI Logo" 
+              alt="Research Room AI Logo" 
               width={100} 
               height={100}
               className="object-contain"
