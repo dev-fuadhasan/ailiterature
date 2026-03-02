@@ -20,8 +20,13 @@ function PricingContent() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancelledMessage, setCancelledMessage] = useState(false);
-  const { isLoaded, openCheckout, priceIds } = usePaddle();
+  const { isLoaded, isLoading, error, openCheckout, priceIds } = usePaddle();
   const searchParams = useSearchParams();
+
+  // Log Paddle state for debugging
+  useEffect(() => {
+    console.log('[PricingContent] Paddle state:', { isLoaded, isLoading, error, priceIds });
+  }, [isLoaded, isLoading, error, priceIds]);
 
   // Handle payment cancelled redirect
   useEffect(() => {
@@ -151,6 +156,30 @@ function PricingContent() {
                   ×
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Paddle Error Message */}
+        {error && (
+          <div className="mb-8 max-w-2xl mx-auto">
+            <div className="bg-red-50 border border-red-200 text-red-800 p-4 rounded-lg">
+              <p className="font-medium">
+                ⚠️ Payment system error: {error.message}
+              </p>
+              <p className="text-sm mt-2">
+                Please refresh the page or contact support if the problem persists.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Paddle Loading Status */}
+        {isLoading && !loading && (
+          <div className="mb-8 max-w-2xl mx-auto">
+            <div className="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-lg text-center">
+              <Spinner size="sm" className="inline-block mr-2" />
+              <span className="font-medium">Loading payment system...</span>
             </div>
           </div>
         )}

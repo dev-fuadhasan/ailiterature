@@ -41,24 +41,52 @@ export function initializePaddle() {
     | 'sandbox'
     | 'production';
 
+  console.log('[Paddle] Initializing...', {
+    hasClientToken: !!clientToken,
+    environment,
+    hasPaddleObject: !!window.Paddle,
+  });
+
   if (!clientToken) {
-    console.error('Paddle client token not configured');
-    return;
+    console.error('[Paddle] Client token not configured');
+    alert('Payment system configuration error. Please contact support.');
+    return false;
   }
 
-  // Set environment (sandbox or production)
-  if (window.Paddle?.Environment) {
-    window.Paddle.Environment.set(environment || 'sandbox');
+  if (!window.Paddle) {
+    console.error('[Paddle] Paddle object not found on window');
+    return false;
   }
 
-  // Initialize Paddle
-  if (window.Paddle?.Initialize) {
-    window.Paddle.Initialize({
-      token: clientToken,
-      eventCallback: (data) => {
-        console.log('Paddle event:', data);
-      },
-    });
+  try {
+    // Set environment (sandbox or production)
+    if (window.Paddle.Environment) {
+      window.Paddle.Environment.set(environment || 'sandbox');
+      console.log('[Paddle] Environment set to:', environment || 'sandbox');
+    }
+
+    // Initialize Paddle
+    if (window.Paddle.Initialize) {
+      window.Paddle.Initialize({
+        token: clientToken,
+        eventCallback: (data) => {
+          console.log('[Paddle] Event received:', data);
+          if (data.name === 'checkout.completed') {
+            console.log('[Paddle] Checkout completed successfully');
+          } else if (data.name === 'checkout.closed') {
+            console.log('[Paddle] Checkout was closed');
+          }
+        },
+      });
+      console.log('[Paddle] Initialized successfully');
+      return true;
+    } else {
+      console.error('[Paddle] Initialize method not available');
+      return false;
+    }
+  } catch (error) {
+    console.error('[Paddle] Initialization error:', error);
+    return false;
   }
 }
 
@@ -68,8 +96,29 @@ export function initializePaddle() {
 export function openPaddleCheckout(options: PaddleCheckoutOptions) {
   const { priceId, userId, userEmail, successUrl, cancelUrl } = options;
 
+  console.log('[Paddle] Opening checkout with options:', {
+    priceId,
+    userId,
+    userEmail,
+    hasPaddle: !!window.Paddle,
+    hasCheckout: !!(window.Paddle?.Checkout),
+  });
+
   if (!window.Paddle) {
-    console.error('Paddle is not initialized');
+    console.error('[Paddle] Paddle object not available');
+    alert('Payment system not loaded. Please refresh the page and try again.');
+    return;
+  }
+
+  if (!window.Paddle.Checkout) {
+    console.error('[Paddle] Paddle.Checkout not available');
+    alert('Payment checkout not available. Please refresh the page and try again.');
+    return;
+  }
+
+  if (!priceId) {
+    console.error('[Paddle] No price ID provided');
+    alert('Payment configuration error. Please contact support.');
     return;
   }
 
@@ -77,16 +126,25 @@ export function openPaddleCheckout(options: PaddleCheckoutOptions) {
   const defaultSuccessUrl = `${window.location.origin}/dashboard?payment=success`;
   const defaultCancelUrl = `${window.location.origin}/pricing?payment=cancelled`;
 
-  // Open checkout
-  window.Paddle.Checkout.open({
+  const checkoutConfig = {
     items: [{ priceId, quantity: 1 }],
     customData: {
-      user_id: userId, // This will be sent to webhook
+      user_id: userId,
     },
     customer: userEmail ? { email: userEmail } : undefined,
     successUrl: successUrl || defaultSuccessUrl,
-    closeUrl: cancelUrl || defaultCancelUrl,
-  });
+  };
+
+  console.log('[Paddle] Checkout config:', checkoutConfig);
+
+  try {
+    // Open checkout
+    window.Paddle.Checkout.open(checkoutConfig);
+    console.log('[Paddle] Checkout opened successfully');
+  } catch (error) {
+    console.error('[Paddle] Error opening checkout:', error);
+    alert('Failed to open payment checkout. Please try again or contact support.');
+  }
 }
 
 /**
@@ -130,10 +188,26 @@ export function loadPaddleScript(): Promise<void> {
 
     script.async = true;
     script.onload = () => {
-      initializePaddle();
-      resolve();
+      console.log('[Paddle] Script loaded successfully');
+      // Wait a bit for Paddle to be available
+      setTimeout(() => {
+        if (window.Paddle) {
+          const initialized = initializePaddle();
+          if (initialized) {
+            resolve();
+          } else {
+            reject(new Error('Failed to initialize Paddle'));
+          }
+        } else {
+          reject(new Error('Paddle object not found after script load'));
+        }
+      }, 100);
     };
-    script.onerror = () => reject(new Error('Failed to load Paddle script'));
+    script.onerror = (error) => {
+      console.error('[Paddle] Script load error:', error);
+      reject(new Error('Failed to load Paddle script'));
+    };
+    console.log('[Paddle] Adding script to document:', script.src);
     document.head.appendChild(script);
   });
 }
@@ -142,8 +216,21 @@ export function loadPaddleScript(): Promise<void> {
  * Get price IDs from environment
  */
 export function getPaddlePriceIds() {
+  const monthly = process.env.NEXT_PUBLIC_PADDLE_MONTHLY_PRICE_ID || '';
+  const yearly = process.env.NEXT_PUBLIC_PADDLE_YEARLY_PRICE_ID || '';
+  
+  console.log('[Paddle] Price IDs from environment:', {
+    monthly,
+    yearly,
+    allEnvVars: {
+      clientToken: process.env.NEXT_PUBLIC_PADDLE_CLIENT_TOKEN ? '✓' : '✗',
+      sellerId: process.env.NEXT_PUBLIC_PADDLE_SELLER_ID || 'not set',
+      environment: process.env.NEXT_PUBLIC_PADDLE_ENVIRONMENT || 'not set',
+    }
+  });
+  
   return {
-    monthly: process.env.NEXT_PUBLIC_PADDLE_MONTHLY_PRICE_ID || '',
-    yearly: process.env.NEXT_PUBLIC_PADDLE_YEARLY_PRICE_ID || '',
+    monthly,
+    yearly,
   };
 }
