@@ -28,8 +28,8 @@ export const pdfResolverQueue = new Queue<PaperInput, ResolveOutput>(
     defaultJobOptions: {
       attempts: 2,
       backoff: { type: "exponential", delay: 3000 },
-      removeOnComplete: { count: 500, age: 60 * 60 * 24 * 7 }, // 7 days
-      removeOnFail: { count: 100 },
+      removeOnComplete: { count: 100, age: 60 * 60 * 24 }, // 1 day max, 100 jobs
+      removeOnFail: { count: 50 },
     },
   }
 );
