@@ -6,13 +6,13 @@ import { deleteFromR2 } from "@/lib/r2";
 // GET /api/admin/users/[id] - Get user details
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const unauthorized = await requireAdmin();
   if (unauthorized) return unauthorized;
 
   try {
-    const userId = params.id;
+    const { id: userId } = await params;
 
     const profile = await prisma.profile.findUnique({
       where: { userId },
@@ -50,13 +50,13 @@ export async function GET(
 // DELETE /api/admin/users/[id] - Delete user and all related data
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const unauthorized = await requireAdmin();
   if (unauthorized) return unauthorized;
 
   try {
-    const userId = params.id;
+    const { id: userId } = await params;
 
     console.log(`[Admin] Starting deletion for user: ${userId}`);
 
