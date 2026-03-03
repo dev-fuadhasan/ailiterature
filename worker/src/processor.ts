@@ -3,6 +3,7 @@ import prisma from "./lib/prisma";
 import { uploadBuffer } from "./lib/r2";
 import { ResearchJobData } from "./lib/queue";
 import { searchGoogleScholar, GoogleScholarPaper, isKnownOAUrl } from "./services/google-scholar";
+import { searchOpenAlex } from "./services/openalex";
 import { analyzePaper, ExtractionResult, generateTopicVariations } from "./services/groq-analyzer";
 import { resolveAndFetchPdf } from "./services/pdf-resolver";
 import { shouldStop, markShouldStop, clearStop } from "./lib/stop-signal";
@@ -84,8 +85,27 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
     console.log(`[Worker] Generated ${topicVariations.length} topic variations:`, topicVariations);
 
     const searchTarget = Math.min(Math.max(maxPapers * 4, 80), 400);
-    const gsPapers = await searchGoogleScholar(topic, yearFrom, yearTo, searchTarget, topicVariations);
-    console.log(`[Worker] Retrieved ${gsPapers.length} candidate papers from Google Scholar`);
+
+    // Run Google Scholar + OpenAlex searches in parallel for faster, broader coverage
+    const [gsPapers, oaPapers] = await Promise.all([
+      searchGoogleScholar(topic, yearFrom, yearTo, searchTarget, topicVariations),
+      searchOpenAlex(topic, yearFrom, yearTo, searchTarget, topicVariations),
+    ]);
+    console.log(`[Worker] Google Scholar: ${gsPapers.length} papers, OpenAlex: ${oaPapers.length} papers`);
+
+    // Merge and deduplicate by DOI then normalized title
+    const seenDois   = new Set<string>(gsPapers.map(p => p.doi).filter(Boolean) as string[]);
+    const seenTitles = new Set<string>(gsPapers.map(p => p.title.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 60)));
+    const uniqueOA   = oaPapers.filter(p => {
+      if (p.doi && seenDois.has(p.doi)) return false;
+      const norm = p.title.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 60);
+      if (seenTitles.has(norm)) return false;
+      if (p.doi) seenDois.add(p.doi);
+      seenTitles.add(norm);
+      return true;
+    });
+    const allPapers: GoogleScholarPaper[] = [...gsPapers, ...uniqueOA];
+    console.log(`[Worker] Combined: ${allPapers.length} unique candidate papers (${uniqueOA.length} new from OpenAlex)`);
 
     {
       const sc = await prisma.project.findUnique({ where: { id: projectId }, select: { stopRequested: true } });
@@ -95,8 +115,8 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
       }
     }
 
-    const maxCit = Math.max(...gsPapers.map((p) => p.citationCount ?? 0), 1);
-    const ranked: RankedCandidate[] = gsPapers
+    const maxCit = Math.max(...allPapers.map((p) => p.citationCount ?? 0), 1);
+    const ranked: RankedCandidate[] = allPapers
       .map((paper, idx) => {
         const relevance = Math.max(0, 1 - idx / 250);
         const citationSignal = paper.citationCount ? Math.log1p(paper.citationCount) / Math.log1p(maxCit) : 0;
@@ -104,7 +124,7 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
         const hasPdf = paper.pdfUrl ? 0.35 : 0;
         // Prioritize recent papers: recency weight increased to 40%, relevance 30%, citations 20%, PDF 10%
         const score = recency * 0.40 + relevance * 0.30 + citationSignal * 0.20 + hasPdf * 0.10;
-        const quartile = idx / Math.max(gsPapers.length, 1) < 0.25 ? "Q1" : idx / Math.max(gsPapers.length, 1) < 0.5 ? "Q2" : idx / Math.max(gsPapers.length, 1) < 0.75 ? "Q3" : "Q4";
+        const quartile = idx / Math.max(allPapers.length, 1) < 0.25 ? "Q1" : idx / Math.max(allPapers.length, 1) < 0.5 ? "Q2" : idx / Math.max(allPapers.length, 1) < 0.75 ? "Q3" : "Q4";
         return { ...paper, score, quartile };
       })
       .sort((a, b) => b.score - a.score);
