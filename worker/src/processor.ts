@@ -132,7 +132,7 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
       } catch {
         // noop
       }
-    }, 2000);
+    }, 10_000); // Poll every 10s (was 2s) to reduce DB load
 
     /**
      * Keys of candidates that failed in Phase 1 (OA PDF Downloader only) and should be
@@ -363,12 +363,15 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
       // Process papers ONE BY ONE sequentially. Each paper is sent to OA PDF
       // Downloader, downloaded, analyzed, and the result is shown immediately
       // before moving to the next paper.
-      console.log(`[Worker] Phase 1 — Processing papers one-by-one (target ${maxPapers})`);
-      
+      console.log(`[Worker] Phase 1 — Processing papers in parallel (concurrency ${CONCURRENCY}, target ${maxPapers})`);
+
+      const phase1Limit = createLimit(CONCURRENCY);
+      const phase1Promises: Promise<void>[] = [];
       for (const candidate of ranked) {
         if (analyzedCount >= maxPapers || shouldStop(projectId)) break;
-        await processCandidate(candidate, true);
+        phase1Promises.push(phase1Limit(() => processCandidate(candidate, true)));
       }
+      await Promise.all(phase1Promises);
 
       // ── Phase 2: fallback APIs (Unpaywall, OpenAlex, Semantic Scholar, HTML) ──
       // Runs whenever Phase 1 did not fulfill the requested paper count.

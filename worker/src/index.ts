@@ -115,7 +115,7 @@ setInterval(async () => {
   } finally {
     fallbackRunning = false;
   }
-}, 15000);
+}, 60_000); // Poll every 60s (was 15s) to reduce idle DB load
 
 // ── Graceful shutdown ─────────────────────────────────────────────────────────
 

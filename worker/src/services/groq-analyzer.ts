@@ -27,7 +27,7 @@ const groqClients = API_KEYS.map((key, idx) => ({
 
 let currentKeyIndex = 0;
 
-function getGroqClient(): { client: Groq; keyIndex: number } {
+async function getGroqClient(): Promise<{ client: Groq; keyIndex: number }> {
   // Find next available (non-exhausted) key
   for (let i = 0; i < groqClients.length; i++) {
     const idx = (currentKeyIndex + i) % groqClients.length;
@@ -36,8 +36,9 @@ function getGroqClient(): { client: Groq; keyIndex: number } {
       return groqClients[idx];
     }
   }
-  // All keys exhausted - reset and try again
-  console.warn("[Groq] All API keys rate-limited, resetting exhaustion flags");
+  // All keys exhausted - wait before resetting to avoid spin-loop
+  console.warn("[Groq] All API keys rate-limited, waiting 30s before retry...");
+  await sleep(30_000);
   groqClients.forEach(c => c.isExhausted = false);
   currentKeyIndex = 0;
   return groqClients[0];
@@ -275,7 +276,7 @@ async function _analyzePaperInner(
     const keysTried = new Set<number>();
     while (keysTried.size < groqClients.length) {
       try {
-        const { client: groq, keyIndex } = getGroqClient();
+        const { client: groq, keyIndex } = await getGroqClient();
         
         // If we've already tried this key for this model, skip
         if (keysTried.has(keyIndex)) {
@@ -316,7 +317,7 @@ async function _analyzePaperInner(
         const isRateLimit = msg.includes("429") || msg.includes("413") || msg.includes("rate_limit");
 
         if (isRateLimit) {
-          const { keyIndex } = getGroqClient();
+          const { keyIndex } = await getGroqClient();
           console.warn(`[Groq:Key${keyIndex}] Rate-limit on ${model}, switching to next key...`);
           switchToNextKey();
           continue;  // Try next key immediately
