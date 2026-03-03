@@ -450,13 +450,13 @@ export default function ProjectPage() {
   if (quartileFilter) displayPapers = displayPapers.filter((p) => p.quartile === quartileFilter);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="mb-6">
-        <div className="flex items-start justify-between">
-          <div className="flex-1 min-w-0 mr-4">
-            <h1 className="text-xl font-bold text-gray-900 mb-1">{project.topic}</h1>
-            <p className="text-sm text-gray-500">{project.yearFrom} – {project.yearTo} · up to {project.maxPapers} papers</p>
+      <div className="mb-4 sm:mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg sm:text-xl font-bold text-gray-900 mb-1">{project.topic}</h1>
+            <p className="text-xs sm:text-sm text-gray-500">{project.yearFrom} – {project.yearTo} · up to {project.maxPapers} papers</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <Button variant="outline" size="sm" onClick={fetchProject} className="gap-1 cursor-pointer">

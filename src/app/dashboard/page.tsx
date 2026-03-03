@@ -173,19 +173,19 @@ function DashboardContent() {
   const failed  = projects.filter((p) => p.status === "FAILED");
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Literature Reviews</h1>
-          <p className="text-gray-500 mt-1">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">My Literature Reviews</h1>
+          <p className="text-gray-500 mt-1 text-sm">
             {projects.length === 0
               ? "No reviews yet — start your first one below."
               : `${projects.length} review${projects.length !== 1 ? "s" : ""} total`}
           </p>
         </div>
-        <Link href="/project/new">
-          <Button className="gap-2 cursor-pointer">
+        <Link href="/project/new" className="w-full sm:w-auto">
+          <Button className="gap-2 cursor-pointer w-full sm:w-auto">
             <PlusCircle className="h-4 w-4" /> New Review
           </Button>
         </Link>
@@ -229,16 +229,16 @@ function DashboardContent() {
 
       {projects.length === 0 ? (
         /* Empty state */
-        <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-dashed border-gray-300">
+        <div className="flex flex-col items-center justify-center py-16 sm:py-24 bg-white rounded-2xl border border-dashed border-gray-300">
           <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mb-4">
             <BookOpen className="h-8 w-8 text-blue-400" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No reviews yet</h3>
-          <p className="text-gray-500 mb-6 text-sm text-center max-w-sm">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">No reviews yet</h3>
+          <p className="text-gray-500 mb-6 text-sm text-center max-w-sm px-4">
             Start your first literature review and we&apos;ll automatically find and analyze relevant papers.
           </p>
-          <Link href="/project/new">
-            <Button className="gap-2 cursor-pointer">
+          <Link href="/project/new" className="w-full sm:w-auto px-4">
+            <Button className="gap-2 cursor-pointer w-full sm:w-auto">
               <PlusCircle className="h-4 w-4" /> Create Your First Review
             </Button>
           </Link>

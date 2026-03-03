@@ -68,16 +68,16 @@ export default function NewProjectPage() {
   }
 
   return (
-    <div className="p-8 max-w-2xl">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-2xl">
       {/* Page header */}
-      <div className="mb-8">
+      <div className="mb-6 sm:mb-8">
         <div className="flex items-center gap-3 mb-3">
           <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
             <BookOpen className="h-5 w-5 text-blue-600" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">New Literature Review</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">New Literature Review</h1>
+            <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
               Set your topic and we&apos;ll find, download &amp; analyze relevant papers automatically.
             </p>
           </div>

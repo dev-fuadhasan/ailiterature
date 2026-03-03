@@ -1,68 +1,119 @@
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+"use client";
+
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { LayoutDashboard, PlusCircle, LogOut, Crown, Zap } from "lucide-react";
+import { LayoutDashboard, PlusCircle, LogOut, Crown, Zap, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Metadata } from "next";
-import prisma from "@/lib/prisma";
 import { SubscriptionSettings } from "@/components/subscription-settings";
+import { useEffect, useState } from "react";
 
-export const metadata: Metadata = {
-  title: "Dashboard",
-  description: "Manage your research projects and literature reviews in Research Room AI dashboard.",
-  robots: {
-    index: false,
-    follow: false,
-  },
-};
-
-export default async function DashboardLayout({
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  if (!user) redirect("/login");
-
-  // Fetch profile to get plan information
-  let profile;
-  try {
-    profile = await prisma.profile.findUnique({
-      where: { userId: user.id },
-      select: {
-        planType: true,
-        planPeriod: true,
-        subscriptionStatus: true,
-        subscriptionStartDate: true,
-        subscriptionId: true,
-        paymentMethodId: true,
-        cardLast4: true,
-        cardType: true,
-        cardExpiryMonth: true,
-        cardExpiryYear: true,
-        autoRenewal: true,
+  useEffect(() => {
+    async function loadUser() {
+      const supabase = createClient();
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      
+      if (!authUser) {
+        router.push("/login");
+        return;
       }
-    });
-  } catch (error) {
-    console.error("Failed to fetch profile:", error);
+
+      setUser(authUser);
+
+      // Fetch profile
+      try {
+        const res = await fetch("/api/profile");
+        if (res.ok) {
+          const profileData = await res.json();
+          setProfile(profileData);
+        }
+      } catch (error) {
+        console.error("Failed to fetch profile:", error);
+      }
+      
+      setLoading(false);
+    }
+    
+    loadUser();
+  }, [router]);
+
+  const handleSignOut = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
   }
 
-  const planType = (profile as any)?.planType || "FREE";
-  const planPeriod = (profile as any)?.planPeriod;
-  const subscriptionStatus = (profile as any)?.subscriptionStatus;
+  if (!user) return null;
+
+  const planType = profile?.planType || "FREE";
+  const planPeriod = profile?.planPeriod;
+  const subscriptionStatus = profile?.subscriptionStatus;
   const isPremium = planType === "PREMIUM" && subscriptionStatus === "ACTIVE";
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-gray-50">
+      {/* Mobile header with hamburger */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-30 px-4 py-3 flex items-center justify-between">
+        <Link href="/" className="inline-block">
+          <Image 
+            src="/logo.png" 
+            alt="Research Room AI Logo" 
+            width={80} 
+            height={80}
+            className="object-contain"
+          />
+        </Link>
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+          aria-label="Toggle menu"
+        >
+          {sidebarOpen ? (
+            <X className="h-6 w-6 text-gray-600" />
+          ) : (
+            <Menu className="h-6 w-6 text-gray-600" />
+          )}
+        </button>
+      </div>
+
+      {/* Overlay for mobile */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-gray-200 flex flex-col fixed h-full">
+      <aside className={`
+        w-64 bg-white border-r border-gray-200 flex flex-col fixed h-full z-50 transition-transform duration-300 ease-in-out
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        lg:translate-x-0
+      `}>
         {/* Logo */}
         <div className="p-6 border-b border-gray-100">
-          <Link href="/" className="inline-block">
+          <Link href="/" className="inline-block" onClick={() => setSidebarOpen(false)}>
             <Image 
               src="/logo.png" 
               alt="Research Room AI Logo" 
@@ -77,6 +128,7 @@ export default async function DashboardLayout({
         <nav className="flex-1 p-4 space-y-1">
           <Link
             href="/dashboard"
+            onClick={() => setSidebarOpen(false)}
             className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
           >
             <LayoutDashboard className="h-4 w-4" />
@@ -84,6 +136,7 @@ export default async function DashboardLayout({
           </Link>
           <Link
             href="/project/new"
+            onClick={() => setSidebarOpen(false)}
             className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
           >
             <PlusCircle className="h-4 w-4" />
@@ -130,39 +183,32 @@ export default async function DashboardLayout({
           <SubscriptionSettings
             userId={user.id}
             email={user.email || ''}
-            subscriptionStartDate={(profile as any)?.subscriptionStartDate || null}
-            subscriptionId={(profile as any)?.subscriptionId || null}
-            planPeriod={(profile as any)?.planPeriod || null}
+            subscriptionStartDate={profile?.subscriptionStartDate || null}
+            subscriptionId={profile?.subscriptionId || null}
+            planPeriod={profile?.planPeriod || null}
             isPremium={isPremium}
-            paymentMethodId={(profile as any)?.paymentMethodId || null}
-            cardLast4={(profile as any)?.cardLast4 || null}
-            cardType={(profile as any)?.cardType || null}
-            cardExpiryMonth={(profile as any)?.cardExpiryMonth || null}
-            cardExpiryYear={(profile as any)?.cardExpiryYear || null}
-            autoRenewal={(profile as any)?.autoRenewal ?? true}
+            paymentMethodId={profile?.paymentMethodId || null}
+            cardLast4={profile?.cardLast4 || null}
+            cardType={profile?.cardType || null}
+            cardExpiryMonth={profile?.cardExpiryMonth || null}
+            cardExpiryYear={profile?.cardExpiryYear || null}
+            autoRenewal={profile?.autoRenewal ?? true}
           />
           
-          <form action="/auth/signout" method="post">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start gap-2 text-gray-600 hover:text-red-600 hover:bg-red-50"
-              formAction={async () => {
-                "use server";
-                const supabase2 = await createClient();
-                await supabase2.auth.signOut();
-                redirect("/login");
-              }}
-            >
-              <LogOut className="h-4 w-4" />
-              Sign out
-            </Button>
-          </form>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start gap-2 text-gray-600 hover:text-red-600 hover:bg-red-50"
+            onClick={handleSignOut}
+          >
+            <LogOut className="h-4 w-4" />
+            Sign out
+          </Button>
         </div>
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 ml-64 min-h-screen">
+      <main className="min-h-screen pt-16 lg:pt-0 lg:ml-64">
         {children}
       </main>
     </div>
