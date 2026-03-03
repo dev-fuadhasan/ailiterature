@@ -68,6 +68,7 @@ const OA_DOMAIN_PATTERNS: RegExp[] = [
   /medrxiv\.org/,
   /journals\.plos\.org/,
   /springeropen\.com/,
+  /link\.springer\.com/,          // SpringerLink OA articles
   /biomedcentral\.com/,
   /nature\.com\/articles\//,
   // Group 2 — Elsevier / ScienceDirect
@@ -101,6 +102,7 @@ const OA_DOMAIN_PATTERNS: RegExp[] = [
   /elifesciences\.org/,
   /peerj\.com/,
   /f1000research\.com/,
+  /jmir\.org/,                    // JMIR (Journal of Medical Internet Research) - all journals
   /royalsocietypublishing\.org/,
   /academic\.oup\.com/,
   /cambridge\.org\/core/,
@@ -108,19 +110,6 @@ const OA_DOMAIN_PATTERNS: RegExp[] = [
   /journals\.sagepub\.com/,
   /egusphere\.net/,
   /geoscientificmodeldev\.net/,
-  // Group 10 — Direct PDF Support (High Priority)
-  /direct\.mit\.edu/,
-  /aaai\.org\/ojs/,
-  /jmlr\.org/,
-  /openreview\.net/,
-  /proceedings\.mlr\.press/,
-  /nips\.cc/,
-  /aclanthology\.org/,
-  /thecvf\.com/,
-  /projecteuclid\.org/,
-  /ams\.org\/journals/,
-  /iospress\.com/,
-  /worldscientific\.com/,
 ];
 
 /** Returns true if the URL belongs to a known open-access domain. */

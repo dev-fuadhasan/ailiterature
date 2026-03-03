@@ -7,8 +7,7 @@ import { analyzePaper, ExtractionResult, generateTopicVariations } from "./servi
 import { resolveAndFetchPdf } from "./services/pdf-resolver";
 import { shouldStop, markShouldStop, clearStop } from "./lib/stop-signal";
 
-// Increased from 4 to 10 for better throughput (we have 5 Groq API keys rotating)
-const CONCURRENCY = 10;
+const CONCURRENCY = 4;
 
 /**
  * Helper to safely update project status, ignoring "Record to update not found" (P2025) errors.
@@ -74,7 +73,6 @@ export async function processResearchJob(job: Job<ResearchJobData>): Promise<voi
 
 export async function processResearchData(data: ResearchJobData): Promise<void> {
   const { projectId, topic, yearFrom, yearTo, maxPapers } = data;
-  const jobStartTime = Date.now();
   console.log(`[Worker] Starting project ${projectId}: "${topic}" — target ${maxPapers} fully analyzed PDFs`);
 
   try {
@@ -111,30 +109,15 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
       })
       .sort((a, b) => b.score - a.score);
 
-    // --- Priority Tier Classification for Optimized Download Speed ---------
-    // Classify papers into 3 tiers based on download speed patterns:
-    // TIER 1 (Fastest): Direct PDF links + ArXiv/PubMed/PMC (instant download)
-    // TIER 2 (Fast): Other known OA domains (OA PDF Downloader compatible)
-    // TIER 3 (Slow): Unknown domains requiring fallback APIs
-    const tier1Ranked: RankedCandidate[] = [];
-    const tier2Ranked: RankedCandidate[] = [];
-    const tier3Ranked: RankedCandidate[] = [];
-    
-    const fastDomains = /arxiv\.org|pmc\.ncbi|pubmed\.ncbi|biorxiv\.org|medrxiv\.org/;
-    
-    for (const paper of ranked) {
-      if (paper.pdfUrl || (paper.gsUrl && fastDomains.test(paper.gsUrl))) {
-        tier1Ranked.push(paper);
-      } else if (isKnownOAUrl(paper.gsUrl)) {
-        tier2Ranked.push(paper);
-      } else {
-        tier3Ranked.push(paper);
-      }
-    }
-    
-    // Reassemble: process fastest sources first for maximum throughput
-    ranked.splice(0, ranked.length, ...tier1Ranked, ...tier2Ranked, ...tier3Ranked);
-    console.log(`[Worker] Download priority tiers: T1=${tier1Ranked.length} (instant), T2=${tier2Ranked.length} (fast OA), T3=${tier3Ranked.length} (slow)`);
+    // --- OA-domain papers first -------------------------------------------
+    // Papers whose landing URL belongs to a known open-access platform are
+    // partitioned to the front of the processing queue. Within each partition
+    // the existing relevance/citation score order is preserved.
+    // This ensures the OA PDF Downloader API is called on the most likely-to-
+    // succeed URLs first, maximising throughput and reducing wasted API credits.
+    const oaRanked    = ranked.filter((p) => isKnownOAUrl(p.gsUrl));
+    const nonOaRanked = ranked.filter((p) => !isKnownOAUrl(p.gsUrl));
+    ranked.splice(0, ranked.length, ...oaRanked, ...nonOaRanked);
 
     await safeProjectUpdate(projectId, { status: "DOWNLOADING", totalPapers: maxPapers });
 
@@ -376,33 +359,21 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
     }
 
     try {
-      const phase1StartTime = Date.now();
-      
       // ── Phase 1: OA PDF Downloader + direct GS PDF link only ──────────────────
-      // PERFORMANCE OPTIMIZED: Process papers in PARALLEL batches of 10 instead of
-      // sequential one-by-one. With 5 Groq API keys rotating, we can handle 10
-      // concurrent analyses without rate limits. 3-5x faster than sequential.
-      console.log(`[Worker] Phase 1 — Processing papers in parallel batches (target ${maxPapers}, concurrency ${CONCURRENCY})`);
-      
-      const phase1Limit = createLimit(CONCURRENCY);
-      const phase1Promises: Promise<void>[] = [];
+      // Process papers ONE BY ONE sequentially. Each paper is sent to OA PDF
+      // Downloader, downloaded, analyzed, and the result is shown immediately
+      // before moving to the next paper.
+      console.log(`[Worker] Phase 1 — Processing papers one-by-one (target ${maxPapers})`);
       
       for (const candidate of ranked) {
         if (analyzedCount >= maxPapers || shouldStop(projectId)) break;
-        phase1Promises.push(phase1Limit(() => processCandidate(candidate, true)));
+        await processCandidate(candidate, true);
       }
-      
-      await Promise.all(phase1Promises);
-      
-      const phase1Duration = ((Date.now() - phase1StartTime) / 1000).toFixed(1);
-      console.log(`[Worker] Phase 1 completed in ${phase1Duration}s — analyzed ${analyzedCount}/${maxPapers}`);
-
 
       // ── Phase 2: fallback APIs (Unpaywall, OpenAlex, Semantic Scholar, HTML) ──
       // Runs whenever Phase 1 did not fulfill the requested paper count.
       // Retries Phase 1 failures AND processes high-priority fresh candidates in PARALLEL.
       if (analyzedCount < maxPapers && !shouldStop(projectId)) {
-        const phase2StartTime = Date.now();
         const deficit = maxPapers - analyzedCount;
         // Smart limit: try up to 3x the deficit to avoid processing hundreds of slow fallback candidates
         const maxPhase2Attempts = Math.min(deficit * 3, 60);
@@ -423,9 +394,6 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
         }
         
         await Promise.all(phase2Promises);
-        
-        const phase2Duration = ((Date.now() - phase2StartTime) / 1000).toFixed(1);
-        console.log(`[Worker] Phase 2 completed in ${phase2Duration}s — total analyzed ${analyzedCount}/${maxPapers}`);
       } else if (analyzedCount >= maxPapers) {
         console.log(`[Worker] Phase 1 target met (${analyzedCount}/${maxPapers}) — skipping fallback APIs`);
       }
@@ -441,14 +409,7 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
         totalPapers: analyzedCount,   // reflect actual successful papers, not requested target
         failedPapers: failedCount,
       });
-      
-      const totalDuration = ((Date.now() - jobStartTime) / 1000).toFixed(1);
-      const papersPerMinute = (analyzedCount / (parseFloat(totalDuration) / 60)).toFixed(1);
-      console.log(
-        `[Worker] ✓ COMPLETED — ${analyzedCount}/${maxPapers} papers analyzed, ` +
-        `${failedCount} failed | Total time: ${totalDuration}s | ` +
-        `Throughput: ${papersPerMinute} papers/min`
-      );
+      console.log(`[Worker] Done — analyzed ${analyzedCount}/${maxPapers}, failed ${failedCount}`);
     } finally {
       clearInterval(stopPollInterval);
       clearStop(projectId);
