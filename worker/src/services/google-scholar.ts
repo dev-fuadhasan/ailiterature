@@ -1,6 +1,57 @@
 import axios from "axios";
 
-const SCRAPINGDOG_KEY = process.env.SCRAPINGDOG_API_KEY || "";
+// ─── ScrapingDog API Key Rotation ──────────────────────────────────────────
+// Load multiple ScrapingDog API keys for automatic failover when rate limits are hit
+const SCRAPINGDOG_KEYS: string[] = [
+  process.env.SCRAPINGDOG_API_KEY_1,
+  process.env.SCRAPINGDOG_API_KEY_2,
+  process.env.SCRAPINGDOG_API_KEY_3,
+  process.env.SCRAPINGDOG_API_KEY_4,
+  process.env.SCRAPINGDOG_API_KEY_5,
+  process.env.SCRAPINGDOG_API_KEY,  // Fallback to original env var
+].filter((key): key is string => !!key);
+
+if (SCRAPINGDOG_KEYS.length === 0) {
+  console.warn("[GS] No ScrapingDog API keys found. Set SCRAPINGDOG_API_KEY or SCRAPINGDOG_API_KEY_1, etc.");
+}
+
+// Track key usage and exhaustion
+const scrapingDogClients = SCRAPINGDOG_KEYS.map((key, idx) => ({
+  apiKey: key,
+  keyIndex: idx + 1,
+  isExhausted: false,
+}));
+
+let currentScrapingDogIndex = 0;
+
+function getScrapingDogKey(): { apiKey: string; keyIndex: number } | null {
+  if (scrapingDogClients.length === 0) return null;
+  
+  // Find next available (non-exhausted) key
+  for (let i = 0; i < scrapingDogClients.length; i++) {
+    const idx = (currentScrapingDogIndex + i) % scrapingDogClients.length;
+    if (!scrapingDogClients[idx].isExhausted) {
+      currentScrapingDogIndex = idx;
+      return scrapingDogClients[idx];
+    }
+  }
+  // All keys exhausted - reset and try again
+  console.warn("[GS] All ScrapingDog API keys rate-limited, resetting exhaustion flags");
+  scrapingDogClients.forEach(c => c.isExhausted = false);
+  currentScrapingDogIndex = 0;
+  return scrapingDogClients[0];
+}
+
+function switchToNextScrapingDogKey(): void {
+  if (scrapingDogClients.length <= 1) return;
+  scrapingDogClients[currentScrapingDogIndex].isExhausted = true;
+  currentScrapingDogIndex = (currentScrapingDogIndex + 1) % scrapingDogClients.length;
+  const nextKey = scrapingDogClients[currentScrapingDogIndex];
+  console.log(`[GS] Switching to ScrapingDog API key #${nextKey.keyIndex}${nextKey.isExhausted ? ' (exhausted)' : ''}`);
+}
+
+console.log(`[GS] Initialized with ${SCRAPINGDOG_KEYS.length} ScrapingDog API key(s)`);
+
 const BASE_URL = "https://api.scrapingdog.com/google_scholar";
 
 // ---------------------------------------------------------------------------
@@ -144,36 +195,52 @@ async function fetchOnePage(
   yearTo: number,
   page: number
 ): Promise<RawGSResult[]> {
-  if (!SCRAPINGDOG_KEY) return [];
+  const keyInfo = getScrapingDogKey();
+  if (!keyInfo) return [];
+  
+  // Retry with key rotation on rate limit
+  const maxRetries = Math.min(scrapingDogClients.length, 3);
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const currentKey = getScrapingDogKey();
+    if (!currentKey) return [];
+    
+    try {
+      const resp = await axios.get(BASE_URL, {
+        params: {
+          api_key: currentKey.apiKey,
+          query,
+          results: "100",
+          page: String(page),
+          language: "en",
+          as_ylo: String(yearFrom),
+          as_yhi: String(yearTo),
+        },
+        timeout: 30000,
+      });
 
-  try {
-    const resp = await axios.get(BASE_URL, {
-      params: {
-        api_key: SCRAPINGDOG_KEY,
-        query,
-        results: "100",
-        page: String(page),
-        language: "en",
-        as_ylo: String(yearFrom),
-        as_yhi: String(yearTo),
-      },
-      timeout: 30000,
-    });
-
-    const data = resp.data;
-    if (Array.isArray(data)) return data;
-    if (Array.isArray(data?.organic_results)) return data.organic_results;
-    if (Array.isArray(data?.scholar_results)) return data.scholar_results;
-    return [];
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (msg.includes("429")) {
-      console.warn("[GS] ScrapingDog rate limit hit — stopping pagination");
-    } else {
-      console.warn("[GS] Fetch error (page", page, "):", msg);
+      const data = resp.data;
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data?.organic_results)) return data.organic_results;
+      if (Array.isArray(data?.scholar_results)) return data.scholar_results;
+      return [];
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("429") || msg.includes("rate limit")) {
+        console.warn(`[GS] ScrapingDog key #${currentKey.keyIndex} rate limited, attempt ${attempt + 1}/${maxRetries}`);
+        switchToNextScrapingDogKey();
+        if (attempt < maxRetries - 1) {
+          await new Promise(r => setTimeout(r, 1000 * (attempt + 1))); // Progressive backoff
+          continue;
+        }
+      } else {
+        console.warn("[GS] Fetch error (page", page, "):", msg);
+      }
+      return [];
     }
-    return [];
   }
+  
+  return [];
 }
 
 function parseCitationCount(val: number | string | null | undefined): number | null {

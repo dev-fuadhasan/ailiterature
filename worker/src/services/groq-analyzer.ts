@@ -89,28 +89,30 @@ if (geminiClients.length > 0) {
   console.log(`[Gemini] Initialized with ${geminiClients.length} API key(s) as fallback`);
 }
 
-// ─── Sequential Groq request queue ─────────────────────────────────────────
-// Problem: with CONCURRENCY=4 in the worker, all 4 analysis tasks fire Groq
-// requests simultaneously, exhausting the TPM window of every model within
-// seconds and causing cascading "All models exhausted" failures.
+// ─── Parallel Groq request processing with per-key rate limiting ───────────
+// NEW APPROACH: Instead of serializing ALL requests globally, we allow parallel
+// processing across DIFFERENT API keys while rate-limiting per key.
+// This dramatically improves throughput when multiple API keys are available.
 //
-// Solution: serialise ALL Groq chat calls through a module-level promise chain
-// so only ONE request runs at a time. PDF downloading/resolving stays fully
-// parallel — only the cheap ~1-2 second LLM call is serialised.
-// A minimum inter-call gap (MIN_GROQ_GAP_MS) prevents back-to-back bursts.
-const MIN_GROQ_GAP_MS = 15000;
-let _groqChain: Promise<unknown> = Promise.resolve();
+// Each key gets its own queue with a minimum gap between requests to that specific key.
+const MIN_GROQ_GAP_MS = 8000; // Reduced from 15s for faster processing
+const keyQueues: Map<number, Promise<unknown>> = new Map();
 
-function enqueueGroqCall<T>(fn: () => Promise<T>): Promise<T> {
-  const next = _groqChain.then(
+function enqueueGroqCallForKey<T>(keyIndex: number, fn: () => Promise<T>): Promise<T> {
+  const currentChain = keyQueues.get(keyIndex) || Promise.resolve();
+  
+  const next = currentChain.then(
     () => fn(),
     () => fn(), // always run even if previous call errored
   );
-  // Chain includes the inter-call gap so subsequent calls wait at least MIN_GROQ_GAP_MS
-  _groqChain = next.then(
+  
+  // Update this key's queue with a gap after completion
+  const chainWithGap = next.then(
     () => new Promise<void>((r) => setTimeout(r, MIN_GROQ_GAP_MS + Math.random() * 2000)),
     () => new Promise<void>((r) => setTimeout(r, MIN_GROQ_GAP_MS + Math.random() * 2000)),
   );
+  
+  keyQueues.set(keyIndex, chainWithGap);
   return next;
 }
 
@@ -254,8 +256,8 @@ export async function analyzePaper(
   title: string,
   abstractOnly = false,
 ): Promise<ExtractionResult | null> {
-  // All calls go through the sequential queue — prevents simultaneous TPM bursts
-  return enqueueGroqCall(() => _analyzePaperInner(paperText, title, abstractOnly));
+  // Direct call - per-key queuing handles rate limiting internally
+  return _analyzePaperInner(paperText, title, abstractOnly);
 }
 
 async function _analyzePaperInner(
@@ -282,21 +284,24 @@ async function _analyzePaperInner(
         }
         keysTried.add(keyIndex);
         
-        const completion = await groq.chat.completions.create({
-          model,
-          messages: [
-            {
-              role: "system",
-              content:
-                "You are an expert academic literature reviewer. " +
-                "Output valid JSON only — no markdown code fences, no commentary.",
-            },
-            { role: "user", content: prompt },
-          ],
-          temperature  : 0.05,
-          max_tokens   : 1_500,
-          response_format: { type: "json_object" },
-        });
+        // Queue the request for this specific key to respect rate limits
+        const completion = await enqueueGroqCallForKey(keyIndex, () => 
+          groq.chat.completions.create({
+            model,
+            messages: [
+              {
+                role: "system",
+                content:
+                  "You are an expert academic literature reviewer. " +
+                  "Output valid JSON only — no markdown code fences, no commentary.",
+              },
+              { role: "user", content: prompt },
+            ],
+            temperature  : 0.05,
+            max_tokens   : 1_500,
+            response_format: { type: "json_object" },
+          })
+        );
 
         const content = completion.choices[0]?.message?.content ?? "";
         const result  = parseAndValidate(content);
@@ -365,28 +370,36 @@ async function _analyzePaperInner(
 // ─── Topic Variation Generator ────────────────────────────────────────────
 /**
  * Generates 5 related topic search queries from a research topic using Groq/Gemini.
- * These variations help broaden the literature search and capture related concepts.
+ * Optimized for speed with simplified prompt and fast timeout.
  */
 export async function generateTopicVariations(topic: string): Promise<string[]> {
   console.log(`[TopicGen] Generating search variations for: "${topic}"`);
   
-  const prompt = `You are a research librarian expert. Given a research topic, generate exactly 5 diverse search query variations that will help find the most relevant academic papers.
+  // Simplified, faster prompt
+  const prompt = `Generate 5 diverse academic search queries for: "${topic}"
 
-Research Topic: "${topic}"
+Return ONLY JSON:
+{"queries": ["variation1", "variation2", "variation3", "variation4", "variation5"]}`;
 
-Generate 5 search queries that:
-1. Cover different aspects and phrasings of the core topic
-2. Include broader and narrower terms
-3. Use domain-specific keywords and synonyms
-4. Are optimized for academic paper search
-5. Each should be 3-10 words long
+  // Create a timeout promise (5 seconds max for topic generation)
+  const timeoutPromise = new Promise<string[]>((_, reject) => 
+    setTimeout(() => reject(new Error("Timeout")), 5000)
+  );
 
-Return ONLY a JSON object with this exact structure — no markdown, no commentary:
-{
-  "queries": ["query1", "query2", "query3", "query4", "query5"]
-}`;
+  // Race between API call and timeout
+  try {
+    return await Promise.race([
+      generateTopicsFromAPI(prompt, topic),
+      timeoutPromise
+    ]);
+  } catch (err) {
+    console.warn(`[TopicGen] Fast generation failed, using original topic only`);
+    return [topic];
+  }
+}
 
-  // Try Groq first
+async function generateTopicsFromAPI(prompt: string, topic: string): Promise<string[]> {
+  // Try Groq first (fastest available key)
   for (const groqClientObj of groqClients) {
     if (groqClientObj.isExhausted) continue;
     
@@ -394,14 +407,11 @@ Return ONLY a JSON object with this exact structure — no markdown, no commenta
       const completion = await groqClientObj.client.chat.completions.create({
         model: "llama-3.1-8b-instant",  // Fast model for quick topic generation
         messages: [
-          {
-            role: "system",
-            content: "You are an expert research librarian. Output valid JSON only.",
-          },
+          { role: "system", content: "Output valid JSON only." },
           { role: "user", content: prompt },
         ],
-        temperature: 0.7,  // More creative for variation
-        max_tokens: 300,
+        temperature: 0.7,
+        max_tokens: 200,  // Reduced for speed
         response_format: { type: "json_object" },
       });
 
@@ -412,7 +422,7 @@ Return ONLY a JSON object with this exact structure — no markdown, no commenta
       if (parsed.queries && Array.isArray(parsed.queries) && parsed.queries.length >= 5) {
         const queries = parsed.queries.slice(0, 5).filter((q: any) => typeof q === "string" && q.trim().length > 0);
         if (queries.length === 5) {
-          console.log(`[TopicGen:Groq:Key${groqClientObj.keyIndex}] ✓ Generated 5 variations`);
+          console.log(`[TopicGen:Groq:Key${groqClientObj.keyIndex}] ✓ Generated 5 variations in ${Date.now()}ms`);
           return queries;
         }
       }
@@ -435,7 +445,7 @@ Return ONLY a JSON object with this exact structure — no markdown, no commenta
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 300,
+          maxOutputTokens: 200,  // Reduced for speed
           responseMimeType: "application/json",
         },
       });
@@ -457,7 +467,6 @@ Return ONLY a JSON object with this exact structure — no markdown, no commenta
     }
   }
 
-  // Fallback: if AI fails, return original topic only
-  console.warn(`[TopicGen] AI failed, using original topic only`);
-  return [topic];
+  // Fallback: return original topic
+  throw new Error("All providers failed");
 }
