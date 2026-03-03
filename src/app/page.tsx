@@ -16,7 +16,6 @@ import {
   Zap,
   Globe,
   LayoutDashboard,
-  Sparkles,
   ChevronRight,
   ArrowDown
 } from "lucide-react";
@@ -77,7 +76,7 @@ export default async function LandingPage() {
             {/* Left Column: Copy & Trust Indicators */}
             <div className="flex-1 text-center lg:text-left">
               <Badge variant="secondary" className="mb-6 text-blue-700 bg-blue-50/80 hover:bg-blue-100 border border-blue-200/60 rounded-full px-4 py-1.5 shadow-sm transition-colors cursor-default backdrop-blur-sm">
-                <Sparkles className="h-3.5 w-3.5 mr-2" /> Elevate your research
+                <Image src="/research.png" alt="" width={14} height={14} className="mr-2" style={{ filter: 'invert(73%) sepia(61%) saturate(380%) hue-rotate(166deg) brightness(102%) contrast(95%)' }} /> Elevate your research
               </Badge>
               <h1 className="text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight text-gray-900 mb-6 leading-[1.1]">
                 AI-powered <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">literature reviews.</span>

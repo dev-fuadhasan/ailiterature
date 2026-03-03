@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Sparkles, Calendar, Hash, Search } from "lucide-react"
+import Image from "next/image"
+import { Calendar, Hash, Search } from "lucide-react"
 
 interface HeroFormProps {
   isSignedIn: boolean
@@ -83,7 +84,7 @@ export function HeroForm({ isSignedIn }: HeroFormProps) {
     <div className="w-full bg-white/80 backdrop-blur-lg border border-gray-200/60 rounded-3xl p-8 shadow-2xl ring-1 ring-gray-900/5">
       <div className="flex items-center gap-2 mb-6">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg">
-          <Sparkles className="w-5 h-5 text-white" />
+          <Image src="/research.png" alt="" width={20} height={20} className="brightness-0 invert" />
         </div>
         <div>
           <h3 className="text-lg font-semibold text-gray-900">Start Your Review</h3>
