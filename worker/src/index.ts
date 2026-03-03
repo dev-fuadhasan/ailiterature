@@ -35,6 +35,10 @@ const worker = new Worker<ResearchJobData>(
       max: 10,
       duration: 1000,
     },
+    // Reduce Redis polling to conserve request quota
+    stalledInterval: 300_000,  // Check stalled jobs every 5 min (default: 30s)
+    pollInterval: 30_000,      // Poll delayed jobs every 30s (default: 5s)
+    skipVersionCheck: true,    // Skip Redis version check on startup
   }
 );
 
@@ -64,6 +68,10 @@ const pdfWorker = new Worker<PaperInput>(
     connection,
     concurrency: 3,
     limiter: { max: 5, duration: 1000 },
+    // Reduce Redis polling to conserve request quota
+    stalledInterval: 300_000,  // Check stalled jobs every 5 min (default: 30s)
+    pollInterval: 30_000,      // Poll delayed jobs every 30s (default: 5s)
+    skipVersionCheck: true,    // Skip Redis version check on startup
   }
 );
 
