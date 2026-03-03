@@ -22,6 +22,8 @@ function PricingContent() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancelledMessage, setCancelledMessage] = useState(false);
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<"MONTHLY" | "YEARLY" | null>(null);
   const { isLoaded, isLoading, error, openCheckout, priceIds } = usePaddle();
   const searchParams = useSearchParams();
 
@@ -99,16 +101,30 @@ function PricingContent() {
     
     console.log("Opening checkout with priceId:", priceId);
     
-    try {
-      openCheckout({
-        priceId,
-        userId: profile.userId,
-        userEmail: profile.email,
-      });
-    } catch (error) {
-      console.error("Error opening checkout:", error);
-      alert("Failed to open payment checkout. Please try again.");
-    }
+    // Show checkout container and scroll to it
+    setSelectedPlan(plan);
+    setShowCheckout(true);
+    
+    // Wait for DOM to update, then open inline checkout
+    setTimeout(() => {
+      const container = document.getElementById('paddle-checkout-container');
+      if (container) {
+        container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      
+      try {
+        openCheckout({
+          priceId,
+          userId: profile.userId,
+          userEmail: profile.email,
+          containerSelector: 'paddle-checkout-container',
+        });
+      } catch (error) {
+        console.error("Error opening checkout:", error);
+        alert("Failed to open payment checkout. Please try again.");
+        setShowCheckout(false);
+      }
+    }, 100);
   }
 
   return (
@@ -191,13 +207,39 @@ function PricingContent() {
             <Spinner size="lg" />
           </div>
         ) : (
-          <PricingPlans
-            currentPlan={profile?.planType}
-            currentPeriod={profile?.planPeriod}
-            subscriptionStatus={profile?.subscriptionStatus}
-            onSelectPlan={handleSelectPlan}
-            showCurrentBadge={true}
-          />
+          <>
+            <PricingPlans
+              currentPlan={profile?.planType}
+              currentPeriod={profile?.planPeriod}
+              subscriptionStatus={profile?.subscriptionStatus}
+              onSelectPlan={handleSelectPlan}
+              showCurrentBadge={true}
+            />
+
+            {/* Inline Checkout Container */}
+            {showCheckout && (
+              <div className="mt-16 max-w-2xl mx-auto">
+                <div className="bg-white rounded-lg shadow-lg p-8 border-2 border-blue-200">
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-bold text-gray-900">
+                      Complete Your Purchase - {selectedPlan === "MONTHLY" ? "Monthly" : "Yearly"} Plan
+                    </h2>
+                    <button
+                      onClick={() => setShowCheckout(false)}
+                      className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                      aria-label="Close checkout"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div 
+                    id="paddle-checkout-container" 
+                    className="min-h-[450px]"
+                  />
+                </div>
+              </div>
+            )}
+          </>
         )}
 
         {/* FAQ Section */}

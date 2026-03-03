@@ -14,8 +14,15 @@ declare global {
           items: Array<{ priceId: string; quantity: number }>;
           customData?: Record<string, any>;
           customer?: { email?: string };
-          successUrl?: string;
-          closeUrl?: string;
+          settings?: {
+            successUrl?: string;
+            displayMode?: 'overlay' | 'inline';
+            theme?: 'light' | 'dark';
+            locale?: string;
+            frameTarget?: string;
+            frameInitialHeight?: number;
+            frameStyle?: string;
+          };
         }) => void;
       };
       Setup: (config: { vendor: number }) => void;
@@ -29,6 +36,7 @@ export type PaddleCheckoutOptions = {
   userEmail?: string;
   successUrl?: string;
   cancelUrl?: string;
+  containerSelector?: string;
 };
 
 /**
@@ -106,13 +114,14 @@ export function initializePaddle() {
  * Open Paddle checkout
  */
 export function openPaddleCheckout(options: PaddleCheckoutOptions) {
-  const { priceId, userId, userEmail, successUrl, cancelUrl } = options;
+  const { priceId, userId, userEmail, successUrl, cancelUrl, containerSelector } = options;
 
   console.log('[Paddle] === OPENING CHECKOUT ===');
   console.log('[Paddle] Options:', {
     priceId,
     userId,
     userEmail,
+    containerSelector,
   });
   console.log('[Paddle] System check:', {
     hasPaddle: !!window.Paddle,
@@ -156,9 +165,12 @@ export function openPaddleCheckout(options: PaddleCheckoutOptions) {
     customer: userEmail ? { email: userEmail } : undefined,
     settings: {
       successUrl: successUrl || defaultSuccessUrl,
-      displayMode: 'overlay' as const,
+      displayMode: 'inline' as const,
       theme: 'light' as const,
       locale: 'en' as const,
+      frameTarget: containerSelector || 'paddle-checkout-container',
+      frameInitialHeight: 450,
+      frameStyle: 'width: 100%; min-width: 312px; background-color: transparent; border: none;',
     },
   };
 
