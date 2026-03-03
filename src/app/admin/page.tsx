@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ShieldCheck,
   LogOut,
@@ -14,12 +16,16 @@ import {
   Calendar,
   FileText,
   AlertCircle,
+  Search,
+  Filter,
+  X,
 } from "lucide-react";
 
 interface User {
   id: string;
   userId: string;
   email: string;
+  name: string | null;
   planType: string;
   subscriptionStatus: string;
   literatureReviewCount: number;
@@ -52,15 +58,48 @@ interface UserDetail {
 export default function AdminDashboard() {
   const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<UserDetail | null>(null);
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Search and filter state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [planFilter, setPlanFilter] = useState<string>("ALL");
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  useEffect(() => {
+    // Apply search and filters
+    let filtered = users;
+
+    // Search by name or email
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (user) =>
+          user.email.toLowerCase().includes(query) ||
+          user.name?.toLowerCase().includes(query)
+      );
+    }
+
+    // Filter by plan type
+    if (planFilter !== "ALL") {
+      filtered = filtered.filter((user) => user.planType === planFilter);
+    }
+
+    // Filter by subscription status
+    if (statusFilter !== "ALL") {
+      filtered = filtered.filter((user) => user.subscriptionStatus === statusFilter);
+    }
+
+    setFilteredUsers(filtered);
+  }, [users, searchQuery, planFilter, statusFilter]);
 
   const fetchUsers = async () => {
     try {
@@ -234,6 +273,89 @@ export default function AdminDashboard() {
           </div>
         )}
 
+        {/* Search and Filters */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+          <div className="flex flex-col lg:flex-row gap-4">
+            {/* Search */}
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Input
+                  type="text"
+                  placeholder="Search by name or email..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 h-10"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Plan Filter */}
+            <div className="w-full lg:w-48">
+              <Select value={planFilter} onValueChange={setPlanFilter}>
+                <SelectTrigger className="h-10">
+                  <div className="flex items-center gap-2">
+                    <Filter className="w-4 h-4" />
+                    <SelectValue placeholder="Plan Type" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All Plans</SelectItem>
+                  <SelectItem value="FREE">Free</SelectItem>
+                  <SelectItem value="PREMIUM">Premium</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Status Filter */}
+            <div className="w-full lg:w-48">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="h-10">
+                  <div className="flex items-center gap-2">
+                    <Filter className="w-4 h-4" />
+                    <SelectValue placeholder="Status" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All Status</SelectItem>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="TRIALING">Trialing</SelectItem>
+                  <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                  <SelectItem value="EXPIRED">Expired</SelectItem>
+                  <SelectItem value="PAST_DUE">Past Due</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Active Filters Display */}
+          {(searchQuery || planFilter !== "ALL" || statusFilter !== "ALL") && (
+            <div className="flex items-center gap-2 mt-4 text-sm text-gray-600">
+              <span className="font-medium">Showing {filteredUsers.length} of {users.length} users</span>
+              {(planFilter !== "ALL" || statusFilter !== "ALL" || searchQuery) && (
+                <button
+                  onClick={() => {
+                    setSearchQuery("");
+                    setPlanFilter("ALL");
+                    setStatusFilter("ALL");
+                  }}
+                  className="text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  Clear all filters
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Users List */}
         <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200">
@@ -245,13 +367,13 @@ export default function AdminDashboard() {
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
               <p className="mt-4 text-gray-500">Loading users...</p>
             </div>
-          ) : users.length === 0 ? (
+          ) : filteredUsers.length === 0 ? (
             <div className="p-12 text-center text-gray-500">
-              No users found
+              {users.length === 0 ? "No users found" : "No users match your search criteria"}
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
-              {users.map((user) => (
+              {filteredUsers.map((user) => (
                 <div key={user.id}>
                   <div
                     className="px-6 py-4 hover:bg-gray-50 cursor-pointer"
@@ -260,9 +382,12 @@ export default function AdminDashboard() {
                     <div className="flex items-center justify-between">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3 mb-2">
-                          <h3 className="text-sm font-medium text-gray-900 truncate">
-                            {user.email}
-                          </h3>
+                          <div>
+                            <h3 className="text-sm font-medium text-gray-900">
+                              {user.name || "No name"}
+                            </h3>
+                            <p className="text-xs text-gray-500">{user.email}</p>
+                          </div>
                           <Badge className={getPlanBadgeColor(user.planType)}>
                             {user.planType}
                           </Badge>

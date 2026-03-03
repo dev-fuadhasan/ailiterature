@@ -23,6 +23,7 @@ export async function GET() {
       id: user.id,
       userId: user.userId,
       email: user.email,
+      name: user.name,
       planType: user.planType,
       subscriptionStatus: user.subscriptionStatus,
       literatureReviewCount: user.literatureReviewCount,

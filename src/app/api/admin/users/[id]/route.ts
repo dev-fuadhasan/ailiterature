@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin-auth";
 import prisma from "@/lib/prisma";
 import { deleteFromR2 } from "@/lib/r2";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // GET /api/admin/users/[id] - Get user details
 export async function GET(
@@ -180,6 +181,22 @@ export async function DELETE(
         console.error(`[Admin] Failed to delete S3 key ${s3Key}:`, error);
         // Continue with other deletions
       }
+    }
+
+    // 7. Delete user from Supabase authentication
+    try {
+      const supabaseAdmin = createAdminClient();
+      const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+      
+      if (authDeleteError) {
+        console.error(`[Admin] Failed to delete user from Supabase auth:`, authDeleteError);
+        // Continue anyway as the database records are already deleted
+      } else {
+        console.log(`[Admin] Successfully deleted user from Supabase authentication`);
+      }
+    } catch (error) {
+      console.error(`[Admin] Error deleting user from Supabase auth:`, error);
+      // Continue anyway as the database records are already deleted
     }
 
     console.log(`[Admin] Successfully deleted user ${userId} and all related data`);
