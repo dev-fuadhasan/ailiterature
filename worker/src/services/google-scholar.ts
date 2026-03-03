@@ -318,8 +318,8 @@ export async function searchGoogleScholar(
   maxResults = 200,
   topicVariations?: string[]  // NEW: Optional AI-generated topic variations
 ): Promise<GoogleScholarPaper[]> {
-  if (!SCRAPINGDOG_KEY) {
-    console.warn("[GS] SCRAPINGDOG_API_KEY not set — skipping Google Scholar");
+  if (SCRAPINGDOG_KEYS.length === 0) {
+    console.warn("[GS] No ScrapingDog API keys configured — skipping Google Scholar");
     return [];
   }
 
