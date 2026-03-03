@@ -1,31 +1,33 @@
 import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/admin-auth";
 import prisma from "@/lib/prisma";
-import { requireAdminAuth } from "@/lib/admin-auth";
-import { createClient } from "@/lib/supabase/server";
-import { S3Client, DeleteObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
-
-const s3Client = new S3Client({
-  region: "auto",
-  endpoint: process.env.R2_ENDPOINT,
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-  },
-});
+import { deleteFromR2 } from "@/lib/r2";
 
 // GET /api/admin/users/[id] - Get user details
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
-  const authError = await requireAdminAuth();
-  if (authError) return authError;
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
 
   try {
-    const { id: userId } = await params;
+    const userId = params.id;
 
     const profile = await prisma.profile.findUnique({
       where: { userId },
+      include: {
+        projects: {
+          orderBy: { createdAt: "desc" },
+          include: {
+            _count: {
+              select: {
+                projectPapers: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!profile) {
@@ -35,29 +37,9 @@ export async function GET(
       );
     }
 
-    const projects = await prisma.project.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      include: {
-        _count: {
-          select: { projectPapers: true },
-        },
-      },
-    });
-
-    const totalPapers = await prisma.projectPaper.count({
-      where: {
-        project: { userId },
-      },
-    });
-
-    return NextResponse.json({
-      profile,
-      projects,
-      totalPapers,
-    });
+    return NextResponse.json({ user: profile });
   } catch (error) {
-    console.error("[Admin] Error fetching user details:", error);
+    console.error("[Admin User Detail] Error:", error);
     return NextResponse.json(
       { error: "Failed to fetch user details" },
       { status: 500 }
@@ -68,154 +50,155 @@ export async function GET(
 // DELETE /api/admin/users/[id] - Delete user and all related data
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
-  const authError = await requireAdminAuth();
-  if (authError) return authError;
+  const unauthorized = await requireAdmin();
+  if (unauthorized) return unauthorized;
 
   try {
-    const { id: userId } = await params;
+    const userId = params.id;
 
-    // Get user's projects to find PDFs in R2
-    const projects = await prisma.project.findMany({
+    console.log(`[Admin] Starting deletion for user: ${userId}`);
+
+    // Check if user exists
+    const profile = await prisma.profile.findUnique({
       where: { userId },
       include: {
-        projectPapers: {
+        projects: {
           include: {
-            paper: true,
+            projectPapers: {
+              include: {
+                paper: true,
+              },
+            },
           },
         },
       },
     });
 
-    // Delete PDFs from R2 storage
-    if (process.env.R2_BUCKET_NAME) {
-      for (const project of projects) {
-        for (const pp of project.projectPapers) {
-          if (pp.paper.s3Key) {
-            try {
-              await s3Client.send(
-                new DeleteObjectCommand({
-                  Bucket: process.env.R2_BUCKET_NAME,
-                  Key: pp.paper.s3Key,
-                })
-              );
-              console.log(`[Admin] Deleted R2 object: ${pp.paper.s3Key}`);
-            } catch (err) {
-              console.warn(`[Admin] Failed to delete R2 object ${pp.paper.s3Key}:`, err);
-            }
-          }
+    if (!profile) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    // Collect all paper IDs from user's projects
+    const paperIds = new Set<string>();
+    for (const project of profile.projects) {
+      for (const pp of project.projectPapers) {
+        paperIds.add(pp.paperId);
+      }
+    }
+
+    console.log(`[Admin] User has ${profile.projects.length} projects with ${paperIds.size} unique papers`);
+
+    // For each paper, check if it's used only by this user's projects
+    const papersToDelete: string[] = [];
+    const s3KeysToDelete: string[] = [];
+
+    for (const paperId of paperIds) {
+      // Count how many projects (from any user) use this paper
+      const projectCount = await prisma.projectPaper.count({
+        where: { paperId },
+      });
+
+      // Count how many of those are from THIS user
+      const userProjectCount = await prisma.projectPaper.count({
+        where: {
+          paperId,
+          project: {
+            userId,
+          },
+        },
+      });
+
+      // If all references are from this user, we can delete the paper
+      if (projectCount === userProjectCount) {
+        papersToDelete.push(paperId);
+
+        // Get the paper's S3 key for deletion
+        const paper = await prisma.paper.findUnique({
+          where: { id: paperId },
+          select: { s3Key: true },
+        });
+
+        if (paper?.s3Key) {
+          s3KeysToDelete.push(paper.s3Key);
         }
       }
     }
 
-    // Delete all database records (cascade will handle related records)
-    // Order matters: delete child records first
+    console.log(`[Admin] Will delete ${papersToDelete.length} papers and ${s3KeysToDelete.length} S3 files`);
+
+    // Start deletion process (in transaction where possible)
     await prisma.$transaction(async (tx) => {
-      // Delete project papers
+      // 1. Delete all project papers for this user's projects
       await tx.projectPaper.deleteMany({
-        where: { project: { userId } },
+        where: {
+          project: {
+            userId,
+          },
+        },
       });
 
-      // Delete projects
+      // 2. Delete all projects
       await tx.project.deleteMany({
         where: { userId },
       });
 
-      // Delete profile
+      // 3. Delete extractions for papers that will be deleted
+      await tx.extraction.deleteMany({
+        where: {
+          paperId: {
+            in: papersToDelete,
+          },
+        },
+      });
+
+      // 4. Delete papers that are only used by this user
+      await tx.paper.deleteMany({
+        where: {
+          id: {
+            in: papersToDelete,
+          },
+        },
+      });
+
+      // 5. Delete the user profile
       await tx.profile.delete({
         where: { userId },
       });
     });
 
-    // Delete user from Supabase auth
-    try {
-      const supabase = await createClient();
-      const { error: authError } = await supabase.auth.admin.deleteUser(userId);
-      if (authError) {
-        console.warn(`[Admin] Failed to delete Supabase user ${userId}:`, authError);
+    // 6. Delete S3 files (outside transaction as it's external service)
+    console.log(`[Admin] Deleting ${s3KeysToDelete.length} files from R2...`);
+    for (const s3Key of s3KeysToDelete) {
+      try {
+        await deleteFromR2(s3Key);
+      } catch (error) {
+        console.error(`[Admin] Failed to delete S3 key ${s3Key}:`, error);
+        // Continue with other deletions
       }
-    } catch (err) {
-      console.warn(`[Admin] Failed to delete Supabase user ${userId}:`, err);
     }
+
+    console.log(`[Admin] Successfully deleted user ${userId} and all related data`);
 
     return NextResponse.json({
       success: true,
-      message: "User and all related data deleted successfully",
+      deleted: {
+        projects: profile.projects.length,
+        papers: papersToDelete.length,
+        files: s3KeysToDelete.length,
+      },
     });
   } catch (error) {
-    console.error("[Admin] Error deleting user:", error);
+    console.error("[Admin User Delete] Error:", error);
     return NextResponse.json(
-      { error: "Failed to delete user", details: error instanceof Error ? error.message : "Unknown error" },
-      { status: 500 }
-    );
-  }
-}
-
-// PATCH /api/admin/users/[id] - Update user subscription
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const authError = await requireAdminAuth();
-  if (authError) return authError;
-
-  try {
-    const { id: userId } = await params;
-    const body = await request.json();
-    const { planType, planPeriod, subscriptionStatus } = body;
-
-    if (!planType || !subscriptionStatus) {
-      return NextResponse.json(
-        { error: "planType and subscriptionStatus are required" },
-        { status: 400 }
-      );
-    }
-
-    const validPlanTypes = ["FREE", "PREMIUM"];
-    const validPlanPeriods = ["MONTHLY", "YEARLY", null];
-    const validStatuses = ["ACTIVE", "CANCELLED", "PAST_DUE", "TRIALING", "EXPIRED"];
-
-    if (!validPlanTypes.includes(planType) || !validStatuses.includes(subscriptionStatus)) {
-      return NextResponse.json(
-        { error: "Invalid planType or subscriptionStatus" },
-        { status: 400 }
-      );
-    }
-
-    if (planPeriod && !validPlanPeriods.includes(planPeriod)) {
-      return NextResponse.json(
-        { error: "Invalid planPeriod" },
-        { status: 400 }
-      );
-    }
-
-    const updateData: any = {
-      planType,
-      subscriptionStatus,
-      updatedAt: new Date(),
-    };
-
-    // Only update planPeriod for PREMIUM plans
-    if (planType === "PREMIUM" && planPeriod) {
-      updateData.planPeriod = planPeriod;
-    } else if (planType === "FREE") {
-      updateData.planPeriod = null;
-    }
-
-    const updatedProfile = await prisma.profile.update({
-      where: { userId },
-      data: updateData,
-    });
-
-    return NextResponse.json({
-      success: true,
-      profile: updatedProfile,
-    });
-  } catch (error) {
-    console.error("[Admin] Error updating user:", error);
-    return NextResponse.json(
-      { error: "Failed to update user" },
+      { 
+        error: "Failed to delete user",
+        details: error instanceof Error ? error.message : "Unknown error"
+      },
       { status: 500 }
     );
   }

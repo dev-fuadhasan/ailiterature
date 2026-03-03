@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { clearAdminSession } from "@/lib/admin-auth";
 
 export async function POST() {
   try {
-    const cookieStore = await cookies();
-    cookieStore.delete("admin_token");
-
+    await clearAdminSession();
     return NextResponse.json({ success: true });
   } catch (error) {
+    console.error("[Admin Logout] Error:", error);
     return NextResponse.json(
-      { error: "Logout failed" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
