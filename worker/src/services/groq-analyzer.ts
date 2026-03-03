@@ -95,7 +95,8 @@ if (geminiClients.length > 0) {
 // This dramatically improves throughput when multiple API keys are available.
 //
 // Each key gets its own queue with a minimum gap between requests to that specific key.
-const MIN_GROQ_GAP_MS = 8000; // Reduced from 15s for faster processing
+// Reduced to 5s since we have 5 keys rotating - allows ~12 calls/min per key = 60 calls/min total
+const MIN_GROQ_GAP_MS = 5000;
 const keyQueues: Map<number, Promise<unknown>> = new Map();
 
 function enqueueGroqCallForKey<T>(keyIndex: number, fn: () => Promise<T>): Promise<T> {
