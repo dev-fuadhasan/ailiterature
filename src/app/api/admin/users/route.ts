@@ -30,7 +30,7 @@ export async function GET() {
       createdAt: user.createdAt,
       trialStartDate: user.trialStartDate,
       trialEndDate: user.trialEndDate,
-      customerId: user.customerId,
+      paddleCustomerId: user.paddleCustomerId,
     }));
 
     return NextResponse.json({ users: usersWithStats });

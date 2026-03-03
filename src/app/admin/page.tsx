@@ -27,7 +27,7 @@ interface User {
   createdAt: string;
   trialStartDate: string | null;
   trialEndDate: string | null;
-  customerId: string | null;
+  paddleCustomerId: string | null;
 }
 
 interface UserDetail {
