@@ -361,3 +361,103 @@ async function _analyzePaperInner(
   console.error(`[AI] All providers exhausted for "${title}"`);
   return null;
 }  // end _analyzePaperInner
+
+// ─── Topic Variation Generator ────────────────────────────────────────────
+/**
+ * Generates 5 related topic search queries from a research topic using Groq/Gemini.
+ * These variations help broaden the literature search and capture related concepts.
+ */
+export async function generateTopicVariations(topic: string): Promise<string[]> {
+  console.log(`[TopicGen] Generating search variations for: "${topic}"`);
+  
+  const prompt = `You are a research librarian expert. Given a research topic, generate exactly 5 diverse search query variations that will help find the most relevant academic papers.
+
+Research Topic: "${topic}"
+
+Generate 5 search queries that:
+1. Cover different aspects and phrasings of the core topic
+2. Include broader and narrower terms
+3. Use domain-specific keywords and synonyms
+4. Are optimized for academic paper search
+5. Each should be 3-10 words long
+
+Return ONLY a JSON object with this exact structure — no markdown, no commentary:
+{
+  "queries": ["query1", "query2", "query3", "query4", "query5"]
+}`;
+
+  // Try Groq first
+  for (const groqClientObj of groqClients) {
+    if (groqClientObj.isExhausted) continue;
+    
+    try {
+      const completion = await groqClientObj.client.chat.completions.create({
+        model: "llama-3.1-8b-instant",  // Fast model for quick topic generation
+        messages: [
+          {
+            role: "system",
+            content: "You are an expert research librarian. Output valid JSON only.",
+          },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.7,  // More creative for variation
+        max_tokens: 300,
+        response_format: { type: "json_object" },
+      });
+
+      const content = completion.choices[0]?.message?.content ?? "";
+      const cleaned = content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+      const parsed = JSON.parse(cleaned);
+      
+      if (parsed.queries && Array.isArray(parsed.queries) && parsed.queries.length >= 5) {
+        const queries = parsed.queries.slice(0, 5).filter((q: any) => typeof q === "string" && q.trim().length > 0);
+        if (queries.length === 5) {
+          console.log(`[TopicGen:Groq:Key${groqClientObj.keyIndex}] ✓ Generated 5 variations`);
+          return queries;
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("429") || msg.includes("rate_limit")) {
+        groqClientObj.isExhausted = true;
+        console.warn(`[TopicGen:Groq:Key${groqClientObj.keyIndex}] Rate-limited`);
+        continue;
+      }
+      console.error(`[TopicGen:Groq] Error:`, msg);
+    }
+  }
+
+  // Try Gemini as fallback
+  const geminiClient = getGeminiClient();
+  if (geminiClient) {
+    try {
+      const result = await geminiClient.client.generateContent({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 300,
+          responseMimeType: "application/json",
+        },
+      });
+      
+      const content = result.response.text();
+      const cleaned = content.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+      const parsed = JSON.parse(cleaned);
+      
+      if (parsed.queries && Array.isArray(parsed.queries) && parsed.queries.length >= 5) {
+        const queries = parsed.queries.slice(0, 5).filter((q: any) => typeof q === "string" && q.trim().length > 0);
+        if (queries.length === 5) {
+          console.log(`[TopicGen:Gemini:Key${geminiClient.keyIndex}] ✓ Generated 5 variations`);
+          return queries;
+        }
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[TopicGen:Gemini] Error:`, msg);
+    }
+  }
+
+  // Fallback: if AI fails, return original topic only
+  console.warn(`[TopicGen] AI failed, using original topic only`);
+  return [topic];
+}

@@ -248,32 +248,41 @@ export async function searchGoogleScholar(
   topic: string,
   yearFrom: number,
   yearTo: number,
-  maxResults = 200
+  maxResults = 200,
+  topicVariations?: string[]  // NEW: Optional AI-generated topic variations
 ): Promise<GoogleScholarPaper[]> {
   if (!SCRAPINGDOG_KEY) {
     console.warn("[GS] SCRAPINGDOG_API_KEY not set — skipping Google Scholar");
     return [];
   }
 
-  // Build up to three complementary queries:
-  //   1. Full title (exact user input)  — always
-  //   2. First half of words           — only when title has > 6 words
-  //   3. Last half of words            — only when title has > 6 words
-  //
-  // Short titles (≤ 6 words) are NOT split: fragments like "Healthcare in" or
-  // "education" produce irrelevant GS results (textbooks, unrelated domains)
-  // that pollute the candidate pool and waste OA downloader credits.
-  const fullTitle = topic.trim();
-  const words = fullTitle.split(/\s+/).filter(Boolean);
+  let queries: string[];
+  
+  if (topicVariations && topicVariations.length > 0) {
+    // Use AI-generated topic variations for searching
+    queries = topicVariations;
+    console.log(`[GS] Using ${queries.length} AI-generated topic variations`);
+  } else {
+    // Fallback: Build up to three complementary queries (original behavior):
+    //   1. Full title (exact user input)  — always
+    //   2. First half of words           — only when title has > 6 words
+    //   3. Last half of words            — only when title has > 6 words
+    //
+    // Short titles (≤ 6 words) are NOT split: fragments like "Healthcare in" or
+    // "education" produce irrelevant GS results (textbooks, unrelated domains)
+    // that pollute the candidate pool and waste OA downloader credits.
+    const fullTitle = topic.trim();
+    const words = fullTitle.split(/\s+/).filter(Boolean);
 
-  const queries: string[] = [fullTitle];
+    queries = [fullTitle];
 
-  if (words.length > 6) {
-    const mid = Math.ceil(words.length / 2);
-    const firstHalf = words.slice(0, mid).join(" ");
-    const lastHalf  = words.slice(mid).join(" ");
-    if (firstHalf && firstHalf !== fullTitle) queries.push(firstHalf);
-    if (lastHalf  && lastHalf  !== fullTitle && lastHalf !== firstHalf) queries.push(lastHalf);
+    if (words.length > 6) {
+      const mid = Math.ceil(words.length / 2);
+      const firstHalf = words.slice(0, mid).join(" ");
+      const lastHalf  = words.slice(mid).join(" ");
+      if (firstHalf && firstHalf !== fullTitle) queries.push(firstHalf);
+      if (lastHalf  && lastHalf  !== fullTitle && lastHalf !== firstHalf) queries.push(lastHalf);
+    }
   }
 
   console.log(`[GS] Search queries (${queries.length}): ${queries.map((q) => `"${q}"`).join(", ")}`);

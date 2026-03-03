@@ -3,7 +3,7 @@ import prisma from "./lib/prisma";
 import { uploadBuffer } from "./lib/r2";
 import { ResearchJobData } from "./lib/queue";
 import { searchGoogleScholar, GoogleScholarPaper, isKnownOAUrl } from "./services/google-scholar";
-import { analyzePaper, ExtractionResult } from "./services/groq-analyzer";
+import { analyzePaper, ExtractionResult, generateTopicVariations } from "./services/groq-analyzer";
 import { resolveAndFetchPdf } from "./services/pdf-resolver";
 import { shouldStop, markShouldStop, clearStop } from "./lib/stop-signal";
 
@@ -78,8 +78,13 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
   try {
     await safeProjectUpdate(projectId, { status: "SEARCHING" });
 
+    // Generate 5 topic variations using AI before searching
+    console.log(`[Worker] Generating topic variations for: "${topic}"`);
+    const topicVariations = await generateTopicVariations(topic);
+    console.log(`[Worker] Generated ${topicVariations.length} topic variations:`, topicVariations);
+
     const searchTarget = Math.min(Math.max(maxPapers * 4, 80), 400);
-    const gsPapers = await searchGoogleScholar(topic, yearFrom, yearTo, searchTarget);
+    const gsPapers = await searchGoogleScholar(topic, yearFrom, yearTo, searchTarget, topicVariations);
     console.log(`[Worker] Retrieved ${gsPapers.length} candidate papers from Google Scholar`);
 
     {
@@ -97,7 +102,8 @@ export async function processResearchData(data: ResearchJobData): Promise<void> 
         const citationSignal = paper.citationCount ? Math.log1p(paper.citationCount) / Math.log1p(maxCit) : 0;
         const recency = paper.year ? Math.max(0, 1 - Math.max(0, new Date().getFullYear() - paper.year) / 12) : 0.4;
         const hasPdf = paper.pdfUrl ? 0.35 : 0;
-        const score = relevance * 0.42 + citationSignal * 0.3 + recency * 0.18 + hasPdf * 0.1;
+        // Prioritize recent papers: recency weight increased to 40%, relevance 30%, citations 20%, PDF 10%
+        const score = recency * 0.40 + relevance * 0.30 + citationSignal * 0.20 + hasPdf * 0.10;
         const quartile = idx / Math.max(gsPapers.length, 1) < 0.25 ? "Q1" : idx / Math.max(gsPapers.length, 1) < 0.5 ? "Q2" : idx / Math.max(gsPapers.length, 1) < 0.75 ? "Q3" : "Q4";
         return { ...paper, score, quartile };
       })
