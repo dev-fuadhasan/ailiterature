@@ -23,7 +23,7 @@ export async function GET(
   if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const projectPapers = await prisma.projectPaper.findMany({
-    where: { projectId: id, extractionStatus: "COMPLETED" },
+    where: { projectId: id },
     include: { paper: { include: { extraction: true } } },
     orderBy: { createdAt: "asc" },
   });

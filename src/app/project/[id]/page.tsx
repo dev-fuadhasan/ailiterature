@@ -473,7 +473,7 @@ export default function ProjectPage() {
                 {stopping ? "Stopping..." : "Stop"}
               </Button>
             )}
-            {isActuallyComplete && (
+            {project.papers.length > 0 && (
               <Button size="sm" onClick={handleExport} disabled={exporting} className="gap-1 cursor-pointer">
                 {exporting ? <Spinner size="sm" /> : <Download className="h-3.5 w-3.5" />}
                 Export CSV
